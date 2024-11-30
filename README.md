@@ -248,7 +248,7 @@ After you've inserted the SD Card and programmed the FPGA you can connect to the
 To generate the FPGA bitstream (and memory configuration) yourself for the Genesys II board run:
 
 ```
-make fpga BOARD=kc705
+make fpga BOARD
 ```
 
 This will produce a bitstream file and memory configuration file (in `fpga/work-fpga`) which you can permanently flash by running the above commands.
