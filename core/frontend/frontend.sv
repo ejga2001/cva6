@@ -192,8 +192,7 @@ module frontend
   end else begin
     assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[addr[0][1]];
     assign btb_prediction_shifted[0] = (serving_unaligned) ? btb_q : btb_prediction[addr[0][1]];
-  end
-  ;
+  end;
 
   // for the return address stack it doens't matter as we have the
   // address of the call/return already
