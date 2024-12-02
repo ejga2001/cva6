@@ -148,9 +148,7 @@ module btb #(
 
     // typedef for all branch target entries
     // we may want to try to put a tag field that fills the rest of the PC in-order to mitigate aliasing effects
-    btb_prediction_t
-        btb_d[NR_ROWS-1:0][CVA6Cfg.INSTR_PER_FETCH-1:0],
-        btb_q[NR_ROWS-1:0][CVA6Cfg.INSTR_PER_FETCH-1:0];
+    btb_prediction_t btb_d[NR_ROWS-1:0][CVA6Cfg.INSTR_PER_FETCH-1:0], btb_q[NR_ROWS-1:0][CVA6Cfg.INSTR_PER_FETCH-1:0];
 
     // output matching prediction
     for (genvar i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin : gen_btb_output
