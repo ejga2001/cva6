@@ -167,6 +167,7 @@ module gbp #(
       bht_ram_wdata = '0;
       bht_updated = '0;
       bht = '0;
+      ghr_d = '0;
 
       //Write to RAM
       if (bht_update_i.valid && !debug_mode_i) begin
