@@ -177,6 +177,7 @@ package build_config_pkg;
     cfg.X_DUALREAD = 0;
     cfg.X_DUALWRITE = 0;
     cfg.X_ISSUE_REGISTER_SPLIT = 0;
+    cfg.BRANCH_PREDICTOR_IMPL = CVA6Cfg.BranchPredictorImpl;
 
     return cfg;
   endfunction

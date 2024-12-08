@@ -202,6 +202,8 @@ package config_pkg;
     bit unsigned                 UseSharedTlb;
     // MMU depth of shared TLB
     int unsigned                 SharedTlbDepth;
+    // Branch Predictor implementation
+    int unsigned                 BranchPredictorImpl;
   } cva6_user_cfg_t;
 
   typedef struct packed {
@@ -352,6 +354,8 @@ package config_pkg;
     int unsigned X_DUALREAD;
     int unsigned X_DUALWRITE;
     int unsigned X_ISSUE_REGISTER_SPLIT;
+
+    int unsigned BRANCH_PREDICTOR_IMPL; // 0 = DEFAULT, 1 = TOURNAMENT
 
   } cva6_cfg_t;
 

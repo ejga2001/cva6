@@ -21,7 +21,7 @@
 
 // branch history table - 2 bit saturation counter
 
-module bht #(
+module lbp #(
   parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter type bht_update_t = logic,
   parameter int unsigned NR_ENTRIES = 1024
@@ -39,7 +39,9 @@ module bht #(
   // Update bht with resolved address - EXECUTE
   input bht_update_t bht_update_i,
   // Prediction from bht - FRONTEND
-  output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o
+  output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
+  // Returns if the prediction was correct
+  output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] local_correct_o
 );
   // the last bit is always zero, we don't need it for indexing
   localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
@@ -50,6 +52,9 @@ module bht #(
   localparam ROW_INDEX_BITS = CVA6Cfg.RVC == 1'b1 ? $clog2(CVA6Cfg.INSTR_PER_FETCH) : 1;
   // number of bits we should use for prediction
   localparam PREDICTION_BITS = $clog2(NR_ROWS) + OFFSET + ROW_ADDR_BITS;
+
+  // Branch Prediction Register bits
+  localparam BHR_BITS = $clog2(NR_ROWS);
 
   struct packed {
     logic       valid;
@@ -135,8 +140,16 @@ module bht #(
     logic [CVA6Cfg.INSTR_PER_FETCH*BRAM_WORD_BITS-1:0] bht_ram_rdata_0;
     logic [CVA6Cfg.INSTR_PER_FETCH*BRAM_WORD_BITS-1:0] bht_ram_rdata_1;
 
+    logic [CVA6Cfg.INSTR_PER_FETCH-1:0] lhr_ram_we;
+    logic [CVA6Cfg.INSTR_PER_FETCH*$clog2(NR_ROWS)-1:0] lhr_ram_write_address;
+    logic [CVA6Cfg.INSTR_PER_FETCH*BHR_BITS-1:0] lhr_ram_wdata;
+    logic [CVA6Cfg.INSTR_PER_FETCH*$clog2(NR_ROWS)-1:0] lhr_ram_read_address;
+    logic [CVA6Cfg.INSTR_PER_FETCH*BHR_BITS-1:0] lhr_ram_rdata;
+
     ariane_pkg::bht_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht;
     ariane_pkg::bht_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_updated;
+    logic [CVA6Cfg.INSTR_PER_FETCH-1:0][BHR_BITS-1:0] lhr;
+    logic [CVA6Cfg.INSTR_PER_FETCH-1:0][BHR_BITS-1:0] lhr_updated;
 
     logic [CVA6Cfg.INSTR_PER_FETCH-1:0][1:0] bht_updated_valid;
     logic [CVA6Cfg.INSTR_PER_FETCH-1:0][1:0][CVA6Cfg.VLEN-1:0] bht_updated_pc;
@@ -161,13 +174,24 @@ module bht #(
       bht_updated = '0;
       bht = '0;
 
+      lhr_ram_we = '0;
+      lhr_ram_read_address = '0;
+      lhr_ram_write_address = '0;
+      lhr_ram_wdata = '0;
+      lhr = '0;
+      lhr_updated = '0;
+
       //Write to RAM
       if (bht_update_i.valid && !debug_mode_i) begin
         for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
           if (update_row_index == i) begin
+            lhr_ram_we[i] = 1'b1;
+            lhr_ram_write_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
+            lhr_ram_read_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
+            lhr[i] = lhr_ram_rdata[i*BHR_BITS+:BHR_BITS];
             bht_updated[i].valid = 1'b1;
             bht_ram_we[i] = 1'b1;
-            bht_ram_write_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
+            bht_ram_write_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = lhr[i];
           end
         end
       end
@@ -183,26 +207,12 @@ module bht #(
         if (check_update_row_index == i) begin
           //When asynchronous RAM is used, the address can be updated on the cycle when data is read
           if (!CVA6Cfg.FpgaAlteraEn) begin
-            bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
+            bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = lhr[i];
           end
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
-
-          if (bht[i].saturation_counter == 2'b11) begin
-            // we can safely decrease it
-            if (!check_bht_update_taken)
-                bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
-            else bht_updated[i].saturation_counter = 2'b11;
-            // then check if it saturated in the negative regime e.g.: branch not taken
-          end else if (bht[i].saturation_counter == 2'b00) begin
-            // we can safely increase it
-            if (check_bht_update_taken)
-                bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
-            else bht_updated[i].saturation_counter = 2'b00;
-          end else begin  // otherwise we are not in any boundaries and can decrease or increase it
-            if (check_bht_update_taken)
-                bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
-            else bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
-          end
+          update_saturation_counter(bht[i], check_bht_update_taken, bht_updated[i]);
+          lhr_updated[i] = {lhr[i][BHR_BITS-2:0], check_bht_update_taken};
+          lhr_ram_wdata[i*BHR_BITS+:BHR_BITS] = lhr_updated;
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
               {bht_updated[i].valid, bht_updated[i].saturation_counter};
@@ -211,6 +221,7 @@ module bht #(
         if (!rst_ni) begin
           //initialize output
           bht_prediction_o[i] = '0;
+          local_correct_o[i] = '0;
         end else begin
           //When asynchronous RAM is used, addresses can be calculated on the same cycle as data is read
           if (!CVA6Cfg.FpgaAlteraEn)
@@ -228,6 +239,8 @@ module bht #(
           end else begin
             bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+2];
             bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+1];
+            if (bht_updated[i].valid)
+              local_correct_o[i] = (check_bht_update_taken == bht[i].saturation_counter[1]);
           end
         end
       end
@@ -264,6 +277,18 @@ module bht #(
           .RdAddr_DI_1(bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)]),
           .RdData_DO_0(bht_ram_rdata_0[i*BRAM_WORD_BITS+:BRAM_WORD_BITS]),
           .RdData_DO_1(bht_ram_rdata_1[i*BRAM_WORD_BITS+:BRAM_WORD_BITS])
+        );
+        AsyncDpRam #(
+          .ADDR_WIDTH($clog2(NR_ROWS)),
+          .DATA_DEPTH(NR_ROWS),
+          .DATA_WIDTH(BHR_BITS)
+        ) i_lhr_ram (
+          .Clk_CI     (clk_i),
+          .WrEn_SI    (lhr_ram_we[i]),
+          .WrAddr_DI  (lhr_ram_write_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)]),
+          .WrData_DI  (lhr_ram_wdata[i*BHR_BITS+:BHR_BITS]),
+          .RdAddr_DI(lhr_ram_read_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)]),
+          .RdData_DO(lhr_ram_rdata[i*BHR_BITS+:BHR_BITS])
         );
       end
     end

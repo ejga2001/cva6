@@ -52,7 +52,7 @@ package cva6_config_pkg;
   localparam CVA6ConfigNrCommitPorts = 2;
   localparam CVA6ConfigNrScoreboardEntries = 8;
 
-  localparam CVA6ConfigFpgaEn = 0;
+  localparam CVA6ConfigFpgaEn = 1;
 
   localparam CVA6ConfigNrLoadPipeRegs = 1;
   localparam CVA6ConfigNrStorePipeRegs = 0;

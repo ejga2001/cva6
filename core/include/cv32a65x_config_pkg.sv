@@ -21,10 +21,10 @@ package cva6_config_pkg;
   localparam config_pkg::cva6_user_cfg_t cva6_cfg = '{
       XLEN: unsigned'(CVA6ConfigXlen),
       VLEN: unsigned'(32),
-      FpgaEn: bit'(0),
+      FpgaEn: bit'(1),
       FpgaAlteraEn: bit'(0),
       TechnoCut: bit'(1),
-      SuperscalarEn: bit'(1),
+      SuperscalarEn: bit'(0),
       NrCommitPorts: unsigned'(1),
       AxiAddrWidth: unsigned'(CVA6ConfigAxiAddrWidth),
       AxiDataWidth: unsigned'(CVA6ConfigAxiDataWidth),
@@ -40,7 +40,7 @@ package cva6_config_pkg;
       RVA: bit'(0),
       RVB: bit'(1),
       RVV: bit'(0),
-      RVC: bit'(1),
+      RVC: bit'(0),
       RVH: bit'(0),
       RVZCB: bit'(1),
       RVZCMP: bit'(0),
@@ -58,7 +58,7 @@ package cva6_config_pkg;
       ExceptionAddress: 64'h808,
       RASDepth: unsigned'(2),
       BTBEntries: unsigned'(0),
-      BHTEntries: unsigned'(32),
+      BHTEntries: unsigned'(1024),
       DmBaseAddress: 64'h0,
       TvalEn: bit'(0),
       DirectVecOnly: bit'(1),
@@ -96,7 +96,8 @@ package cva6_config_pkg;
       SharedTlbDepth: int'(64),
       NrLoadPipeRegs: int'(0),
       NrStorePipeRegs: int'(0),
-      DcacheIdWidth: int'(1)
+      DcacheIdWidth: int'(1),
+      BranchPredictorImpl: unsigned'(0)
   };
 
 endpackage

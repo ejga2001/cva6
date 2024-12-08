@@ -21,7 +21,7 @@
 
 // branch history table - 2 bit saturation counter
 
-module bht #(
+module gbp #(
   parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter type bht_update_t = logic,
   parameter int unsigned NR_ENTRIES = 1024
@@ -39,7 +39,9 @@ module bht #(
   // Update bht with resolved address - EXECUTE
   input bht_update_t bht_update_i,
   // Prediction from bht - FRONTEND
-  output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o
+  output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
+  // Returns if the prediction was correct
+  output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] global_correct_o
 );
   // the last bit is always zero, we don't need it for indexing
   localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
@@ -51,6 +53,11 @@ module bht #(
   // number of bits we should use for prediction
   localparam PREDICTION_BITS = $clog2(NR_ROWS) + OFFSET + ROW_ADDR_BITS;
 
+  // Branch Prediction Register bits
+  localparam BHR_BITS = $clog2(NR_ROWS);
+
+  logic [BHR_BITS-1:0] ghr;
+
   struct packed {
     logic       valid;
     logic [1:0] saturation_counter;
@@ -59,7 +66,7 @@ module bht #(
   logic [$clog2(NR_ROWS)-1:0] index, update_pc;
   logic [ROW_INDEX_BITS-1:0] update_row_index, update_row_index_q, check_update_row_index;
 
-  assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
+  assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET] ^ ghr;
   assign update_pc = bht_update_i.pc[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
   if (CVA6Cfg.RVC) begin : gen_update_row_index
     assign update_row_index = bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
@@ -186,23 +193,7 @@ module bht #(
             bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
           end
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
-
-          if (bht[i].saturation_counter == 2'b11) begin
-            // we can safely decrease it
-            if (!check_bht_update_taken)
-                bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
-            else bht_updated[i].saturation_counter = 2'b11;
-            // then check if it saturated in the negative regime e.g.: branch not taken
-          end else if (bht[i].saturation_counter == 2'b00) begin
-            // we can safely increase it
-            if (check_bht_update_taken)
-                bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
-            else bht_updated[i].saturation_counter = 2'b00;
-          end else begin  // otherwise we are not in any boundaries and can decrease or increase it
-            if (check_bht_update_taken)
-                bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
-            else bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
-          end
+          update_saturation_counter(bht[i], check_bht_update_taken, bht_updated[i]);
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
               {bht_updated[i].valid, bht_updated[i].saturation_counter};
@@ -211,6 +202,7 @@ module bht #(
         if (!rst_ni) begin
           //initialize output
           bht_prediction_o[i] = '0;
+          global_correct_o[i] = '0;
         end else begin
           //When asynchronous RAM is used, addresses can be calculated on the same cycle as data is read
           if (!CVA6Cfg.FpgaAlteraEn)
@@ -228,6 +220,8 @@ module bht #(
           end else begin
             bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+2];
             bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+1];
+            if (bht_updated[i].valid)
+              global_correct_o[i] = (check_bht_update_taken == bht[i].saturation_counter[1]);
           end
         end
       end
@@ -295,6 +289,11 @@ module bht #(
           update_row_index_q <= update_row_index;
           row_index_q <= row_index;
         end
+      end else begin
+        if (!rst_ni)
+          ghr <= '0;
+        else
+          ghr <= {ghr[BHR_BITS-2:0], bht_update_i.taken};
       end
     end
 

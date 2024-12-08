@@ -2,7 +2,7 @@
 
 # genesys2
 if [ -z "${BOARD}" ]; then
-    export BOARD="genesys2"
+    export BOARD="kc705"
 fi
 
 if [ "$BOARD" = "genesys2" ]; then

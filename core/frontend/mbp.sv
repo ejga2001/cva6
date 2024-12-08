@@ -21,7 +21,7 @@
 
 // branch history table - 2 bit saturation counter
 
-module bht #(
+module mbp #(
   parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter type bht_update_t = logic,
   parameter int unsigned NR_ENTRIES = 1024
@@ -38,6 +38,9 @@ module bht #(
   input logic [CVA6Cfg.VLEN-1:0] vpc_i,
   // Update bht with resolved address - EXECUTE
   input bht_update_t bht_update_i,
+  // Former predictions from the other BPs
+  input logic [CVA6Cfg.INSTR_PER_FETCH-1:0] local_correct_i,
+  input logic [CVA6Cfg.INSTR_PER_FETCH-1:0] global_correct_i,
   // Prediction from bht - FRONTEND
   output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o
 );
@@ -58,6 +61,7 @@ module bht #(
 
   logic [$clog2(NR_ROWS)-1:0] index, update_pc;
   logic [ROW_INDEX_BITS-1:0] update_row_index, update_row_index_q, check_update_row_index;
+  ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_q;
 
   assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
   assign update_pc = bht_update_i.pc[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
@@ -186,23 +190,32 @@ module bht #(
             bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
           end
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
-
-          if (bht[i].saturation_counter == 2'b11) begin
-            // we can safely decrease it
-            if (!check_bht_update_taken)
-                bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
-            else bht_updated[i].saturation_counter = 2'b11;
-            // then check if it saturated in the negative regime e.g.: branch not taken
-          end else if (bht[i].saturation_counter == 2'b00) begin
-            // we can safely increase it
-            if (check_bht_update_taken)
-                bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
-            else bht_updated[i].saturation_counter = 2'b00;
-          end else begin  // otherwise we are not in any boundaries and can decrease or increase it
-            if (check_bht_update_taken)
-                bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
-            else bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
-          end
+          case (bht[i].saturation_counter)
+            2'b00: begin
+              if ((!bht_prediction_q[i].taken && !local_correct_i[i] && global_correct_i[i])
+                  || (bht_prediction_q[i].taken && !global_correct_i[i] && local_correct_i[i]))
+                  bht_updated[i].saturation_counter = 2'b00;
+              else
+                  bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
+            end
+            2'b01, 2'b10: begin
+              if ((!bht_prediction_q[i].taken && !local_correct_i[i] && global_correct_i[i])
+                  || (bht_prediction_q[i].taken && !global_correct_i[i] && local_correct_i[i]))
+                  bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
+              else
+                  bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
+            end
+            2'b11: begin
+              if ((!bht_prediction_q[i].taken && !local_correct_i[i] && global_correct_i[i])
+                  || (bht_prediction_q[i].taken && !global_correct_i[i] && local_correct_i[i]))
+                  bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
+              else
+                  bht_updated[i].saturation_counter = 2'b11;
+            end
+            default: begin
+              bht_updated[i].saturation_counter = 2'b00;
+            end
+          endcase
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
               {bht_updated[i].valid, bht_updated[i].saturation_counter};
@@ -294,6 +307,15 @@ module bht #(
           bht_ram_write_address_q <= bht_ram_write_address;
           update_row_index_q <= update_row_index;
           row_index_q <= row_index;
+        end
+      end else begin
+        if (!rst_ni)
+            bht_prediction_q <= '0;
+        else begin
+          for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
+            if (bht_prediction_o[i].valid)
+                bht_prediction_q[i] <= bht_prediction_o[i];
+          end
         end
       end
     end
