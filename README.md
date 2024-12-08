@@ -52,9 +52,8 @@ pip3 install -r verif/sim/dv/requirements.txt
 7. Run these commands to install a custom Spike and Verilator (i.e. these versions must be used to simulate the CVA6) and [these](#running-regression-tests-simulations) tests suites.
 ```sh
 # DV_SIMULATORS is detailed in the next section
-export NUM_JOBS=3
 export DV_SIMULATORS=veri-testharness
-export TRACE_FAST=0
+export TRACE_FAST=1
 bash verif/regress/smoke-tests-cv32a65x.sh
 ```
 
