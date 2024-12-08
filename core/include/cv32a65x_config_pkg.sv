@@ -40,7 +40,7 @@ package cva6_config_pkg;
       RVA: bit'(0),
       RVB: bit'(1),
       RVV: bit'(0),
-      RVC: bit'(0),
+      RVC: bit'(1),
       RVH: bit'(0),
       RVZCB: bit'(1),
       RVZCMP: bit'(0),
@@ -97,7 +97,7 @@ package cva6_config_pkg;
       NrLoadPipeRegs: int'(0),
       NrStorePipeRegs: int'(0),
       DcacheIdWidth: int'(1),
-      BranchPredictorImpl: unsigned'(0)
+      BranchPredictorImpl: unsigned'(1)
   };
 
 endpackage
