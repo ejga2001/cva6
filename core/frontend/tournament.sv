@@ -99,7 +99,7 @@ module tournament #(
     );
 
     for (genvar i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
-        assign bht_prediction_o[i] = (mbp_prediction[i].taken == 0) ? lbp_prediction[i] : gbp_prediction[i];
+        assign bht_prediction_o[i] = (mbp_prediction[i].taken == 0 ? lbp_prediction[i] : gbp_prediction[i]);
     end
 
 endmodule

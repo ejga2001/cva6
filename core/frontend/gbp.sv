@@ -56,7 +56,7 @@ module gbp #(
   // Branch Prediction Register bits
   localparam BHR_BITS = $clog2(NR_ROWS);
 
-  logic [BHR_BITS-1:0] ghr;
+  logic [BHR_BITS-1:0] ghr_q, ghr_d;
 
   struct packed {
     logic       valid;
@@ -66,7 +66,7 @@ module gbp #(
   logic [$clog2(NR_ROWS)-1:0] index, update_pc;
   logic [ROW_INDEX_BITS-1:0] update_row_index, update_row_index_q, check_update_row_index;
 
-  assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET] ^ ghr;
+  assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET] ^ ghr_q;
   assign update_pc = bht_update_i.pc[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
   if (CVA6Cfg.RVC) begin : gen_update_row_index
     assign update_row_index = bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
@@ -195,6 +195,7 @@ module gbp #(
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
           update_saturation_counter(bht[i], check_bht_update_taken, bht_updated[i]);
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
+          ghr_d = {ghr_d[BHR_BITS-2:0], bht_update_i.taken};
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
               {bht_updated[i].valid, bht_updated[i].saturation_counter};
         end
@@ -220,8 +221,7 @@ module gbp #(
           end else begin
             bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+2];
             bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+1];
-            if (bht_updated[i].valid)
-              global_correct_o[i] = (check_bht_update_taken == bht[i].saturation_counter[1]);
+            global_correct_o[i] = (check_bht_update_taken == bht[i].saturation_counter[1]);
           end
         end
       end
@@ -291,9 +291,9 @@ module gbp #(
         end
       end else begin
         if (!rst_ni)
-          ghr <= '0;
+          ghr_q <= '0;
         else
-          ghr <= {ghr[BHR_BITS-2:0], bht_update_i.taken};
+          ghr_q <= ghr_d;
       end
     end
 

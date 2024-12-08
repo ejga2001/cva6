@@ -58,7 +58,7 @@ package cva6_config_pkg;
       ExceptionAddress: 64'h808,
       RASDepth: unsigned'(2),
       BTBEntries: unsigned'(0),
-      BHTEntries: unsigned'(1024),
+      BHTEntries: unsigned'(8),
       DmBaseAddress: 64'h0,
       TvalEn: bit'(0),
       DirectVecOnly: bit'(1),
