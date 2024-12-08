@@ -61,7 +61,7 @@ module mbp #(
 
   logic [$clog2(NR_ROWS)-1:0] index, update_pc;
   logic [ROW_INDEX_BITS-1:0] update_row_index, update_row_index_q, check_update_row_index;
-  ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_q;
+  logic [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_taken_q, bht_prediction_taken_d;
 
   assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
   assign update_pc = bht_update_i.pc[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
@@ -192,22 +192,22 @@ module mbp #(
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
           case (bht[i].saturation_counter)
             2'b00: begin
-              if ((!bht_prediction_q[i].taken && !local_correct_i[i] && global_correct_i[i])
-                  || (bht_prediction_q[i].taken && !global_correct_i[i] && local_correct_i[i]))
+              if ((!bht_prediction_taken_q[i].taken && (local_correct_i[i] ^ global_correct_i[i]))
+                  || (bht_prediction_taken_q[i].taken && (global_correct_i[i] ^ local_correct_i[i])))
                   bht_updated[i].saturation_counter = 2'b00;
               else
                   bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
             end
             2'b01, 2'b10: begin
-              if ((!bht_prediction_q[i].taken && !local_correct_i[i] && global_correct_i[i])
-                  || (bht_prediction_q[i].taken && !global_correct_i[i] && local_correct_i[i]))
+              if ((!bht_prediction_taken_q[i].taken && (local_correct_i[i] ^ global_correct_i[i]))
+                  || (bht_prediction_taken_q[i].taken && (global_correct_i[i] ^ local_correct_i[i])))
                   bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
               else
                   bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
             end
             2'b11: begin
-              if ((!bht_prediction_q[i].taken && !local_correct_i[i] && global_correct_i[i])
-                  || (bht_prediction_q[i].taken && !global_correct_i[i] && local_correct_i[i]))
+              if ((!bht_prediction_taken_q[i].taken && (local_correct_i[i] ^ global_correct_i[i]))
+                  || (bht_prediction_taken_q[i].taken && (global_correct_i[i] ^ local_correct_i[i])))
                   bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
               else
                   bht_updated[i].saturation_counter = 2'b11;
@@ -217,6 +217,7 @@ module mbp #(
             end
           endcase
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
+          bht_prediction_taken_d[i] = bht_updated[i].saturation_counter[1];
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
               {bht_updated[i].valid, bht_updated[i].saturation_counter};
         end
@@ -313,8 +314,8 @@ module mbp #(
             bht_prediction_q <= '0;
         else begin
           for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
-            if (bht_prediction_o[i].valid)
-                bht_prediction_q[i] <= bht_prediction_o[i];
+            if (bht_update_i.taken)
+              bht_prediction_taken_q[i] <= bht_prediction_taken_d[i];
           end
         end
       end
