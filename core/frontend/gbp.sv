@@ -195,7 +195,7 @@ module gbp #(
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
           update_saturation_counter(bht[i], check_bht_update_taken, bht_updated[i]);
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
-          ghr_d = {ghr_d[BHR_BITS-2:0], bht_update_i.taken};
+          ghr_d = {ghr_q[BHR_BITS-2:0], bht_update_i.taken};
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
               {bht_updated[i].valid, bht_updated[i].saturation_counter};
         end
