@@ -627,7 +627,7 @@ verilate_command := $(verilator) --no-timing verilator_config.vlt               
                     -CFLAGS "$(CFLAGS)$(if $(PROFILE), -g -pg,) -DVL_DEBUG -I$(SPIKE_INSTALL_DIR)"               \
                     $(if $(SPIKE_TANDEM), +define+SPIKE_TANDEM, )                                                \
                     --cc --vpi                                                                                   \
-                    $(list_incdir) --top-module tournament                                               \
+                    $(list_incdir) --top-module ariane_testharness                                               \
                     --threads-dpi none                                                                           \
                     --Mdir $(ver-library) -O3                                                                    \
                     --exe corev_apu/tb/ariane_tb.cpp corev_apu/tb/dpi/SimDTM.cc corev_apu/tb/dpi/SimJTAG.cc      \

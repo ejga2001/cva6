@@ -161,6 +161,8 @@ module bht #(
       bht_updated = '0;
       bht = '0;
 
+      //$display("CLK_I = %b\nRST_NI = %b\nVPC_I = %h\nBHT_UPDATE_I = %h\nDEBUG_MODE = %b\n-----\n", clk_i, rst_ni, vpc_i, bht_update_i, debug_mode_i);
+
       //Write to RAM
       if (bht_update_i.valid && !debug_mode_i) begin
         for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin

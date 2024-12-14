@@ -39,9 +39,7 @@ module lbp #(
   // Update bht with resolved address - EXECUTE
   input bht_update_t bht_update_i,
   // Prediction from bht - FRONTEND
-  output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
-  // Returns if the prediction was correct
-  output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] local_correct_o
+  output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o
 );
   // the last bit is always zero, we don't need it for indexing
   localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
@@ -143,8 +141,10 @@ module lbp #(
     logic [CVA6Cfg.INSTR_PER_FETCH-1:0] lhr_ram_we;
     logic [CVA6Cfg.INSTR_PER_FETCH*$clog2(NR_ROWS)-1:0] lhr_ram_write_address;
     logic [CVA6Cfg.INSTR_PER_FETCH*BHR_BITS-1:0] lhr_ram_wdata;
-    logic [CVA6Cfg.INSTR_PER_FETCH*$clog2(NR_ROWS)-1:0] lhr_ram_read_address;
-    logic [CVA6Cfg.INSTR_PER_FETCH*BHR_BITS-1:0] lhr_ram_rdata;
+    logic [CVA6Cfg.INSTR_PER_FETCH*$clog2(NR_ROWS)-1:0] lhr_ram_read_address_0;
+    logic [CVA6Cfg.INSTR_PER_FETCH*$clog2(NR_ROWS)-1:0] lhr_ram_read_address_1;
+    logic [CVA6Cfg.INSTR_PER_FETCH*BHR_BITS-1:0] lhr_ram_rdata_0;
+    logic [CVA6Cfg.INSTR_PER_FETCH*BHR_BITS-1:0] lhr_ram_rdata_1;
 
     ariane_pkg::bht_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht;
     ariane_pkg::bht_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_updated;
@@ -175,11 +175,12 @@ module lbp #(
       bht = '0;
 
       lhr_ram_we = '0;
-      lhr_ram_read_address = '0;
+      lhr_ram_read_address_0 = '0;
+      lhr_ram_read_address_1 = '0;
       lhr_ram_write_address = '0;
       lhr_ram_wdata = '0;
-      lhr = '0;
       lhr_updated = '0;
+      lhr = '0;
 
       //Write to RAM
       if (bht_update_i.valid && !debug_mode_i) begin
@@ -187,8 +188,8 @@ module lbp #(
           if (update_row_index == i) begin
             lhr_ram_we[i] = 1'b1;
             lhr_ram_write_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
-            lhr_ram_read_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
-            lhr[i] = lhr_ram_rdata[i*BHR_BITS+:BHR_BITS];
+            lhr_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
+            lhr[i] = lhr_ram_rdata_1[i*BHR_BITS+:BHR_BITS];
             bht_updated[i].valid = 1'b1;
             bht_ram_we[i] = 1'b1;
             bht_ram_write_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = lhr[i];
@@ -210,22 +211,39 @@ module lbp #(
             bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = lhr[i];
           end
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
-          update_saturation_counter(bht[i], check_bht_update_taken, bht_updated[i]);
+          case (bht[i].saturation_counter)
+            2'b00: begin
+              bht_updated[i].saturation_counter = (check_bht_update_taken == 0) ? 2'b00 :
+                  bht[i].saturation_counter + 1;
+            end
+            2'b01, 2'b10: begin
+              bht_updated[i].saturation_counter = (check_bht_update_taken == 0) ? bht[i].saturation_counter - 1:
+                  bht[i].saturation_counter + 1;
+            end
+            2'b11: begin
+              bht_updated[i].saturation_counter = (check_bht_update_taken == 1) ? 2'b11 :
+                  bht[i].saturation_counter - 1;
+            end
+            default: begin
+              bht_updated[i].saturation_counter = 2'b00;
+            end
+          endcase
           lhr_updated[i] = {lhr[i][BHR_BITS-2:0], check_bht_update_taken};
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
-          lhr_ram_wdata[i*BHR_BITS+:BHR_BITS] = lhr_updated[i];
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
               {bht_updated[i].valid, bht_updated[i].saturation_counter};
+          lhr_ram_wdata[i*BHR_BITS+:BHR_BITS] = lhr_updated[i];
         end
 
         if (!rst_ni) begin
           //initialize output
           bht_prediction_o[i] = '0;
-          local_correct_o[i] = '0;
         end else begin
           //When asynchronous RAM is used, addresses can be calculated on the same cycle as data is read
-          if (!CVA6Cfg.FpgaAlteraEn)
-              bht_ram_read_address_0[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = index;
+          if (!CVA6Cfg.FpgaAlteraEn) begin
+            lhr_ram_read_address_0[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = index;
+            bht_ram_read_address_0[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = lhr_ram_rdata_0[i*BHR_BITS+:BHR_BITS];
+          end
           //When synchronous RAM is used and data is read right after writing, we need some buffering
           // This is one cycle of buffering
           if (CVA6Cfg.FpgaAlteraEn && bht_updated_valid[i][0] && vpc_q == bht_updated_pc[i][0]) begin
@@ -239,7 +257,6 @@ module lbp #(
           end else begin
             bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+2];
             bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+1];
-            local_correct_o[i] = (check_bht_update_taken == bht[i].saturation_counter[1]);
           end
         end
       end
@@ -277,7 +294,7 @@ module lbp #(
           .RdData_DO_0(bht_ram_rdata_0[i*BRAM_WORD_BITS+:BRAM_WORD_BITS]),
           .RdData_DO_1(bht_ram_rdata_1[i*BRAM_WORD_BITS+:BRAM_WORD_BITS])
         );
-        AsyncDpRam #(
+        AsyncThreePortRam #(
           .ADDR_WIDTH($clog2(NR_ROWS)),
           .DATA_DEPTH(NR_ROWS),
           .DATA_WIDTH(BHR_BITS)
@@ -286,8 +303,10 @@ module lbp #(
           .WrEn_SI    (lhr_ram_we[i]),
           .WrAddr_DI  (lhr_ram_write_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)]),
           .WrData_DI  (lhr_ram_wdata[i*BHR_BITS+:BHR_BITS]),
-          .RdAddr_DI(lhr_ram_read_address[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)]),
-          .RdData_DO(lhr_ram_rdata[i*BHR_BITS+:BHR_BITS])
+          .RdAddr_DI_0(lhr_ram_read_address_0[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)]),
+          .RdAddr_DI_1(lhr_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)]),
+          .RdData_DO_0(lhr_ram_rdata_0[i*BHR_BITS+:BHR_BITS]),
+          .RdData_DO_1(lhr_ram_rdata_1[i*BHR_BITS+:BHR_BITS])
         );
       end
     end

@@ -39,9 +39,7 @@ module gbp #(
   // Update bht with resolved address - EXECUTE
   input bht_update_t bht_update_i,
   // Prediction from bht - FRONTEND
-  output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
-  // Returns if the prediction was correct
-  output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] global_correct_o
+  output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o
 );
   // the last bit is always zero, we don't need it for indexing
   localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
@@ -57,6 +55,7 @@ module gbp #(
   localparam BHR_BITS = $clog2(NR_ROWS);
 
   logic [BHR_BITS-1:0] ghr_q, ghr_d;
+  logic ghr_valid;
 
   struct packed {
     logic       valid;
@@ -67,7 +66,7 @@ module gbp #(
   logic [ROW_INDEX_BITS-1:0] update_row_index, update_row_index_q, check_update_row_index;
 
   assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET] ^ ghr_q;
-  assign update_pc = bht_update_i.pc[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
+  assign update_pc = bht_update_i.pc[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET] ^ ghr_q;
   if (CVA6Cfg.RVC) begin : gen_update_row_index
     assign update_row_index = bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
   end else begin
@@ -168,9 +167,11 @@ module gbp #(
       bht_updated = '0;
       bht = '0;
       ghr_d = '0;
+      ghr_valid = '0;
 
       //Write to RAM
       if (bht_update_i.valid && !debug_mode_i) begin
+        ghr_valid = 1'b1;
         for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
           if (update_row_index == i) begin
             bht_updated[i].valid = 1'b1;
@@ -194,7 +195,23 @@ module gbp #(
             bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
           end
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
-          update_saturation_counter(bht[i], check_bht_update_taken, bht_updated[i]);
+          case (bht[i].saturation_counter)
+            2'b00: begin
+              bht_updated[i].saturation_counter = (check_bht_update_taken == 0) ? 2'b00 :
+                  bht[i].saturation_counter + 1;
+            end
+            2'b01, 2'b10: begin
+              bht_updated[i].saturation_counter = (check_bht_update_taken == 0) ? bht[i].saturation_counter - 1:
+                  bht[i].saturation_counter + 1;
+            end
+            2'b11: begin
+              bht_updated[i].saturation_counter = (check_bht_update_taken == 1) ? 2'b11 :
+                  bht[i].saturation_counter - 1;
+            end
+            default: begin
+              bht_updated[i].saturation_counter = 2'b00;
+            end
+          endcase
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
           ghr_d = {ghr_q[BHR_BITS-2:0], bht_update_i.taken};
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
@@ -204,7 +221,6 @@ module gbp #(
         if (!rst_ni) begin
           //initialize output
           bht_prediction_o[i] = '0;
-          global_correct_o[i] = '0;
         end else begin
           //When asynchronous RAM is used, addresses can be calculated on the same cycle as data is read
           if (!CVA6Cfg.FpgaAlteraEn)
@@ -222,7 +238,6 @@ module gbp #(
           end else begin
             bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+2];
             bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+1];
-            global_correct_o[i] = (check_bht_update_taken == bht[i].saturation_counter[1]);
           end
         end
       end
@@ -292,9 +307,11 @@ module gbp #(
         end
       end else begin
         if (!rst_ni)
-          ghr_q <= '0;
-        else
-          ghr_q <= ghr_d;
+            ghr_q <= '0;
+        else begin
+          if (ghr_valid)
+              ghr_q <= ghr_d;
+        end
       end
     end
 

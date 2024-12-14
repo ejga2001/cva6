@@ -29,7 +29,6 @@
 ${CVA6_REPO_DIR}/vendor/pulp-platform/fpga-support/rtl/SyncDpRam.sv
 ${CVA6_REPO_DIR}/vendor/pulp-platform/fpga-support/rtl/AsyncDpRam.sv
 ${CVA6_REPO_DIR}/vendor/pulp-platform/fpga-support/rtl/AsyncThreePortRam.sv
-${CVA6_REPO_DIR}/vendor/pulp-platform/fpga-support/rtl/AsyncFourPortRam.sv
 
 +incdir+${CVA6_REPO_DIR}/core/include/
 +incdir+${CVA6_REPO_DIR}/vendor/pulp-platform/common_cells/include/
@@ -140,11 +139,11 @@ ${CVA6_REPO_DIR}/core/acc_dispatcher.sv
 ${CVA6_REPO_DIR}/core/cva6_fifo_v3.sv
 
 // What is "frontend"?
-${CVA6_REPO_DIR}/core/frontend/lbp.sv
+${CVA6_REPO_DIR}/core/frontend/bht.sv
 ${CVA6_REPO_DIR}/core/frontend/gbp.sv
+${CVA6_REPO_DIR}/core/frontend/lbp.sv
 ${CVA6_REPO_DIR}/core/frontend/mbp.sv
 ${CVA6_REPO_DIR}/core/frontend/tournament.sv
-${CVA6_REPO_DIR}/core/frontend/bht.sv
 ${CVA6_REPO_DIR}/core/frontend/btb.sv
 ${CVA6_REPO_DIR}/core/frontend/ras.sv
 ${CVA6_REPO_DIR}/core/frontend/instr_scan.sv
