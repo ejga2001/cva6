@@ -153,6 +153,9 @@
   logic [Cfg.XLEN-1:0] mtval_q; \
   logic fiom_q; \
   logic [ariane_pkg::MHPMCounterNum+3-1:0] mcountinhibit_q; \
+  logic [ariane_pkg::MHPMCounterNum+3-1:0] mcountinhibitu_q; \
+  logic [ariane_pkg::MHPMCounterNum+3-1:0] mcountinhibits_q; \
+  logic [ariane_pkg::MHPMCounterNum+3-1:0] mcountinhibitm_q; \
   logic [63:0] cycle_q; \
   logic [63:0] instret_q; \
   logic [Cfg.XLEN-1:0] dcache_q; \

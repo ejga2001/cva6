@@ -571,6 +571,9 @@ package riscv;
     CSR_MCYCLEH          = 12'hB80,
     CSR_MINSTRET         = 12'hB02,
     CSR_MINSTRETH        = 12'hB82,
+    CSR_MCOUNTINHIBIT_U   = 12'h390,
+    CSR_MCOUNTINHIBIT_S   = 12'h391,
+    CSR_MCOUNTINHIBIT_M   = 12'h392,
     //Performance Counters
     CSR_MHPM_COUNTER_3   = 12'hB03,
     CSR_MHPM_COUNTER_4   = 12'hB04,

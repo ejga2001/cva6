@@ -32,7 +32,6 @@ module perf_counters
     input logic [11:0] addr_i,  // read/write address (up to 6 counters possible)
     input logic we_i,  // write enable
     input logic [CVA6Cfg.XLEN-1:0] data_i,  // data to write
-    output logic [CVA6Cfg.XLEN-1:0] data_o,  // data to read
     // from commit stage
     input  scoreboard_entry_t [CVA6Cfg.NrCommitPorts-1:0] commit_instr_i,     // the instruction we want to commit
     input  logic [CVA6Cfg.NrCommitPorts-1:0]              commit_ack_i,       // acknowledge that we are indeed committing
@@ -54,10 +53,18 @@ module perf_counters
     input exception_t branch_exceptions_i,  //Branch exceptions->execute unit-> branch_exception_o
     input icache_dreq_t l1_icache_access_i,
     input dcache_req_i_t [2:0] l1_dcache_access_i,
-    input  logic [NumPorts-1:0][CVA6Cfg.DCACHE_SET_ASSOC-1:0]miss_vld_bits_i,  //For Cache eviction (3ports-LOAD,STORE,PTW)
+    input logic [NumPorts-1:0][CVA6Cfg.DCACHE_SET_ASSOC-1:0]miss_vld_bits_i,  //For Cache eviction (3ports-LOAD,STORE,PTW)
     input logic i_tlb_flush_i,
     input logic stall_issue_i,  //stall-read operands
-    input logic [31:0] mcountinhibit_i
+    // CSR regfile
+    input logic [31:0] mcountinhibit_i,
+    input logic [31:0] mcountinhibitu_i,
+    input logic [31:0] mcountinhibits_i,
+    input logic [31:0] mcountinhibitm_i,
+    // Privilege level
+    input riscv::priv_lvl_t priv_lvl_i,
+
+    output logic [CVA6Cfg.XLEN-1:0] data_o  // data to read
 );
 
     typedef logic [11:0] csr_addr_t;
@@ -132,7 +139,6 @@ module perf_counters
                 default: events[i] = 0;
             endcase
         end
-
     end
 
     always_comb begin : generic_counter
@@ -143,9 +149,13 @@ module perf_counters
         update_access_exception = 1'b0;
 
         // Increment the non-inhibited counters with active events
-        for (int unsigned i = 1; i <= 6; i++) begin
+        for (int unsigned i = 1; i <= MHPMCounterNum; i++) begin
             if ((!debug_mode_i) && (!we_i)) begin
-                if ((events[i]) == 1 && (!mcountinhibit_i[i+2])) begin
+                if (events[i] == 1
+                    && !mcountinhibit_i[i+2]
+                    && (((priv_lvl_i == riscv::PRIV_LVL_M) && !mcountinhibitm_i[i+2])
+                        || ((CVA6Cfg.RVU && (priv_lvl_i == riscv::PRIV_LVL_U)) && !mcountinhibitu_i[i+2])
+                        || ((CVA6Cfg.RVS && (priv_lvl_i == riscv::PRIV_LVL_S)) && !mcountinhibits_i[i+2]))) begin
                     generic_counter_d[i] = generic_counter_q[i] + 1'b1;
                 end
             end

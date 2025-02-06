@@ -563,6 +563,10 @@ module cva6
   riscv::pmpcfg_t [CVA6Cfg.NrPMPEntries-1:0] pmpcfg;
   logic [CVA6Cfg.NrPMPEntries-1:0][CVA6Cfg.PLEN-3:0] pmpaddr;
   logic [31:0] mcountinhibit_csr_perf;
+  logic [31:0] mcountinhibitu_csr_perf;
+  logic [31:0] mcountinhibits_csr_perf;
+  logic [31:0] mcountinhibitm_csr_perf;
+
   // ----------------------------
   // Performance Counters <-> *
   // ----------------------------
@@ -1152,6 +1156,9 @@ module cva6
       .pmpcfg_o                (pmpcfg),
       .pmpaddr_o               (pmpaddr),
       .mcountinhibit_o         (mcountinhibit_csr_perf),
+      .mcountinhibitu_o        (mcountinhibitu_csr_perf),
+      .mcountinhibits_o        (mcountinhibits_csr_perf),
+      .mcountinhibitm_o        (mcountinhibitm_csr_perf),
       //RVFI
       .rvfi_csr_o              (rvfi_csr)
   );
@@ -1197,7 +1204,11 @@ module cva6
         .miss_vld_bits_i    (miss_vld_bits),
         .i_tlb_flush_i      (flush_tlb_ctrl_ex),
         .stall_issue_i      (stall_issue),
-        .mcountinhibit_i    (mcountinhibit_csr_perf)
+        .mcountinhibit_i    (mcountinhibit_csr_perf),
+        .mcountinhibitu_i   (mcountinhibitu_csr_perf),
+        .mcountinhibits_i   (mcountinhibits_csr_perf),
+        .mcountinhibitm_i   (mcountinhibitm_csr_perf),
+        .priv_lvl_i              (priv_lvl)
     );
   end : gen_perf_counter
   else begin : gen_no_perf_counter
