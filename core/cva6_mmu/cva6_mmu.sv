@@ -92,6 +92,8 @@ module cva6_mmu
     input logic flush_tlb_gvma_i,
 
     // Performance counters
+    output logic itlb_access_o,
+    output logic dtlb_access_o,
     output logic itlb_miss_o,
     output logic dtlb_miss_o,
     // PTW memory interface
@@ -167,6 +169,8 @@ module cva6_mmu
 
   // Assignments
 
+  assign itlb_access_o  = icache_areq_i.fetch_req;
+  assign dtlb_access_o  = lsu_req_i;
   assign itlb_lu_access = icache_areq_i.fetch_req;
   assign dtlb_lu_access = lsu_req_i;
   assign itlb_lu_asid   = v_i ? vs_asid_i : asid_i;

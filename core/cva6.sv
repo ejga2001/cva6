@@ -575,6 +575,8 @@ module cva6
   logic we_csr_perf;
 
   logic icache_flush_ctrl_cache;
+  logic itlb_access_ex_perf;
+  logic dtlb_access_ex_perf;
   logic itlb_miss_ex_perf;
   logic dtlb_miss_ex_perf;
   logic dcache_miss_cache_perf;
@@ -984,6 +986,8 @@ module cva6
       // Accelerator
       .acc_valid_i             (acc_valid_acc_ex),
       // Performance counters
+      .itlb_access_o           (itlb_access_ex_perf),
+      .dtlb_access_o           (dtlb_access_ex_perf),
       .itlb_miss_o             (itlb_miss_ex_perf),
       .dtlb_miss_o             (dtlb_miss_ex_perf),
       // Memory Management
@@ -1189,6 +1193,8 @@ module cva6
 
         .l1_icache_miss_i   (icache_miss_cache_perf),
         .l1_dcache_miss_i   (dcache_miss_cache_perf),
+        .itlb_access_i      (itlb_access_ex_perf),
+        .dtlb_access_i      (dtlb_access_ex_perf),
         .itlb_miss_i        (itlb_miss_ex_perf),
         .dtlb_miss_i        (dtlb_miss_ex_perf),
         .sb_full_i          (sb_full),

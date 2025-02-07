@@ -217,9 +217,11 @@ module ex_stage
     output amo_req_t amo_req_o,
     // AMO response - CACHE
     input amo_resp_t amo_resp_i,
-    // To count the instruction TLB misses - PERF_COUNTERS
+    // To count the instruction TLB accesses/misses - PERF_COUNTERS
+    output logic itlb_access_o,
     output logic itlb_miss_o,
-    // To count the data TLB misses - PERF_COUNTERS
+    // To count the data TLB accesses/misses - PERF_COUNTERS
+    output logic dtlb_access_o,
     output logic dtlb_miss_o,
     // Report the PMP configuration - CSR_REGFILE
     input riscv::pmpcfg_t [CVA6Cfg.NrPMPEntries-1:0] pmpcfg_i,
@@ -575,6 +577,8 @@ module ex_stage
       .flush_tlb_i,
       .flush_tlb_vvma_i,
       .flush_tlb_gvma_i,
+      .itlb_access_o,
+      .dtlb_access_o,
       .itlb_miss_o,
       .dtlb_miss_o,
       .dcache_req_ports_i,

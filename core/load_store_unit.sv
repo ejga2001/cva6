@@ -130,8 +130,10 @@ module load_store_unit
     input  logic                                      flush_tlb_vvma_i,
     input  logic                                      flush_tlb_gvma_i,
     // Instruction TLB miss - PERF_COUNTERS
+    output logic                                      itlb_access_o,
     output logic                                      itlb_miss_o,
     // Data TLB miss - PERF_COUNTERS
+    output logic                                      dtlb_access_o,
     output logic                                      dtlb_miss_o,
 
     // Data cache request output - CACHES
@@ -301,6 +303,8 @@ module load_store_unit
         .flush_tlb_vvma_i,
         .flush_tlb_gvma_i,
 
+        .itlb_access_o(itlb_access_o),
+        .dtlb_access_o(dtlb_access_o),
         .itlb_miss_o(itlb_miss_o),
         .dtlb_miss_o(dtlb_miss_o),
 

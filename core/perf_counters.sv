@@ -39,6 +39,8 @@ module perf_counters
     input logic l1_icache_miss_i,
     input logic l1_dcache_miss_i,
     // from MMU
+    input logic itlb_access_i,
+    input logic dtlb_access_i,
     input logic itlb_miss_i,
     input logic dtlb_miss_i,
     // from issue stage
@@ -53,7 +55,7 @@ module perf_counters
     input exception_t branch_exceptions_i,  //Branch exceptions->execute unit-> branch_exception_o
     input icache_dreq_t l1_icache_access_i,
     input dcache_req_i_t [2:0] l1_dcache_access_i,
-    input logic [NumPorts-1:0][CVA6Cfg.DCACHE_SET_ASSOC-1:0]miss_vld_bits_i,  //For Cache eviction (3ports-LOAD,STORE,PTW)
+    input logic [NumPorts-1:0][CVA6Cfg.DCACHE_SET_ASSOC-1:0] miss_vld_bits_i,  //For Cache eviction (3ports-LOAD,STORE,PTW)
     input logic i_tlb_flush_i,
     input logic stall_issue_i,  //stall-read operands
     // CSR regfile
@@ -75,8 +77,8 @@ module perf_counters
     //internal signal to keep track of exception
     logic read_access_exception, update_access_exception;
 
-    logic events[6:1];
-    //internal signal for  MUX select line input
+    logic [1:0] events[MHPMCounterNum:1];
+    //internal signal for MUX select line input
     logic [4:0] mhpmevent_d[MHPMCounterNum:1];
     logic [4:0] mhpmevent_q[MHPMCounterNum:1];
     // internal signal to detect event on multiple commit ports
@@ -130,12 +132,18 @@ module perf_counters
                 5'b01110: events[i] = sb_full_i;  //MSB Full
                 5'b01111: events[i] = if_empty_i;  //Instruction fetch Empty
                 5'b10000: events[i] = l1_icache_access_i.req;  //L1 I-Cache accesses
-                5'b10001: events[i] = l1_dcache_access_i[0].data_req || l1_dcache_access_i[1].data_req || l1_dcache_access_i[2].data_req;//L1 D-Cache accesses
+                5'b10001: events[i] = l1_dcache_access_i[0].data_req || l1_dcache_access_i[1].data_req || l1_dcache_access_i[2].data_req;  //L1 D-Cache accesses
                 5'b10010: events[i] = (l1_dcache_miss_i && miss_vld_bits_i[0] == 8'hFF) || (l1_dcache_miss_i && miss_vld_bits_i[1] == 8'hFF) || (l1_dcache_miss_i && miss_vld_bits_i[2] == 8'hFF);//eviction
                 5'b10011: events[i] = i_tlb_flush_i;  //I-TLB flush
                 5'b10100: events[i] = |int_event;  //Integer instructions
                 5'b10101: events[i] = |fp_event;  //Floating Point Instructions
                 5'b10110: events[i] = stall_issue_i;  //Pipeline bubbles
+                5'b10111: events[i] = l1_icache_miss_i + l1_dcache_miss_i;  //L1 Cache misses
+                5'b11000: events[i] = l1_icache_access_i.req + (l1_dcache_access_i[0].data_req
+                                                            || l1_dcache_access_i[1].data_req
+                                                            || l1_dcache_access_i[2].data_req); //L1 Cache accesses
+                5'b11001: events[i] = itlb_access_i; //ITLB accesses
+                5'b11010: events[i] = dtlb_access_i; //DTLB accesses
                 default: events[i] = 0;
             endcase
         end
@@ -151,12 +159,12 @@ module perf_counters
         // Increment the non-inhibited counters with active events
         for (int unsigned i = 1; i <= MHPMCounterNum; i++) begin
             if ((!debug_mode_i) && (!we_i)) begin
-                if (events[i] == 1
+                if (events[i] >= 1
                     && !mcountinhibit_i[i+2]
                     && (((priv_lvl_i == riscv::PRIV_LVL_M) && !mcountinhibitm_i[i+2])
                         || ((CVA6Cfg.RVU && (priv_lvl_i == riscv::PRIV_LVL_U)) && !mcountinhibitu_i[i+2])
                         || ((CVA6Cfg.RVS && (priv_lvl_i == riscv::PRIV_LVL_S)) && !mcountinhibits_i[i+2]))) begin
-                    generic_counter_d[i] = generic_counter_q[i] + 1'b1;
+                    generic_counter_d[i] = generic_counter_q[i] + events[i];
                 end
             end
         end
