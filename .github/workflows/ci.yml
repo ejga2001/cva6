@@ -116,6 +116,20 @@ jobs:
           source ci/install-prereq.sh
           source verif/sim/setup-env.sh
           DV_SIMULATORS=${{matrix.simulator}},spike DV_TARGET=${{matrix.config}} bash verif/regress/${{matrix.testcase}}.sh
+        
+    - name: Mostrar log de simulación si falla
+      if: failure()  # Solo se ejecuta si hay error
+      run: |
+        echo "Mostrando las últimas 50 líneas del log..."
+        tail -n 50 /home/runner/work/cva6/cva6/verif/sim/out_2025-02-08/veri-testharness_sim/*.log.iss || echo "No se encontró el log"
+
+    - name: Guardar logs como artifact
+      if: always()  # Se ejecuta siempre para depuración
+      uses: actions/upload-artifact@v4
+      with:
+        name: logs-verificacion
+        path: /home/runner/work/cva6/cva6/verif/sim/out_2025-02-08/veri-testharness_sim/
+        retention-days: 10
 
     - name: Upload Lint Report to Github
       uses: actions/upload-artifact@v4
