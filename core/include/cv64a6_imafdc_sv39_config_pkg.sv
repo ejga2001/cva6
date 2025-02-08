@@ -56,7 +56,8 @@ package cva6_config_pkg;
 
   localparam CVA6ConfigRASDepth = 2;
   localparam CVA6ConfigBTBEntries = 32;
-  localparam CVA6ConfigBHTEntries = 128;
+  localparam CVA6ConfigBHTEntries = 512;
+  localparam CVA6ConfigBranchPredictorImpl = 0;
 
   localparam CVA6ConfigTvalEn = 1;
 
@@ -149,7 +150,7 @@ package cva6_config_pkg;
       NrLoadPipeRegs: int'(CVA6ConfigNrLoadPipeRegs),
       NrStorePipeRegs: int'(CVA6ConfigNrStorePipeRegs),
       DcacheIdWidth: int'(CVA6ConfigDcacheIdWidth),
-      BranchPredictorImpl: unsigned'(1)
+      BranchPredictorImpl: unsigned'(CVA6ConfigBranchPredictorImpl)
   };
 
 endpackage
