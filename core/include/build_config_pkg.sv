@@ -99,7 +99,6 @@ package build_config_pkg;
     cfg.ExceptionAddress = CVA6Cfg.ExceptionAddress;
     cfg.RASDepth = CVA6Cfg.RASDepth;
     cfg.BTBEntries = CVA6Cfg.BTBEntries;
-    cfg.BHTEntries = CVA6Cfg.BHTEntries;
     cfg.DmBaseAddress = CVA6Cfg.DmBaseAddress;
     cfg.TvalEn = CVA6Cfg.TvalEn;
     cfg.DirectVecOnly = CVA6Cfg.DirectVecOnly;
@@ -177,7 +176,14 @@ package build_config_pkg;
     cfg.X_DUALREAD = 0;
     cfg.X_DUALWRITE = 0;
     cfg.X_ISSUE_REGISTER_SPLIT = 0;
-    cfg.BRANCH_PREDICTOR_IMPL = CVA6Cfg.BranchPredictorImpl;
+
+    // Branch predictor implementation
+    cfg.BranchPredictorImpl = CVA6Cfg.BranchPredictorImpl;
+    cfg.BHTEntries = CVA6Cfg.BHTEntries;
+    cfg.ChoicePredictorSize = CVA6Cfg.ChoicePredictorSize;
+    cfg.GlobalPredictorSize = CVA6Cfg.GlobalPredictorSize;
+    cfg.LocalPredictorSize = CVA6Cfg.LocalPredictorSize;
+    cfg.LocalHistoryTableSize = CVA6Cfg.LocalHistoryTableSize;
 
     return cfg;
   endfunction

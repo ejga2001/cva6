@@ -7,9 +7,31 @@
 //
 // Original Author: Jean-Roch COULON - Thales
 
+`ifndef BRANCH_PRED_IMPL
+  `define BRANCH_PRED_IMPL 3
+`endif
+
+`ifndef BHT_ENTRIES
+  `define BHT_ENTRIES 1024
+`endif
+
+`ifndef MBP_ENTRIES
+  `define MBP_ENTRIES 1024
+`endif
+
+`ifndef GBP_ENTRIES
+  `define GBP_ENTRIES 1024
+`endif
+
+`ifndef LBP_ENTRIES
+  `define LBP_ENTRIES 1024
+`endif
+
+`ifndef LHR_ENTRIES
+  `define LHR_ENTRIES 1024
+`endif
 
 package cva6_config_pkg;
-
   localparam CVA6ConfigXlen = 64;
 
   localparam CVA6ConfigRVF = 1;
@@ -56,8 +78,13 @@ package cva6_config_pkg;
 
   localparam CVA6ConfigRASDepth = 2;
   localparam CVA6ConfigBTBEntries = 32;
-  localparam CVA6ConfigBHTEntries = 512;
-  localparam CVA6ConfigBranchPredictorImpl = 0;
+
+  localparam CVA6ConfigBranchPredictorImpl = `BRANCH_PRED_IMPL;
+  localparam CVA6ConfigBHTEntries = `BHT_ENTRIES;
+  localparam CVA6ConfigChoicePredictorSize = `MBP_ENTRIES;
+  localparam CVA6ConfigGlobalPredictorSize = `GBP_ENTRIES;
+  localparam CVA6ConfigLocalPredictorSize = `LBP_ENTRIES;
+  localparam CVA6ConfigLocalHistoryTableSize = `LHR_ENTRIES;
 
   localparam CVA6ConfigTvalEn = 1;
 
@@ -111,7 +138,6 @@ package cva6_config_pkg;
       ExceptionAddress: 64'h808,
       RASDepth: unsigned'(CVA6ConfigRASDepth),
       BTBEntries: unsigned'(CVA6ConfigBTBEntries),
-      BHTEntries: unsigned'(CVA6ConfigBHTEntries),
       DmBaseAddress: 64'h0,
       TvalEn: bit'(CVA6ConfigTvalEn),
       DirectVecOnly: bit'(0),
@@ -150,7 +176,11 @@ package cva6_config_pkg;
       NrLoadPipeRegs: int'(CVA6ConfigNrLoadPipeRegs),
       NrStorePipeRegs: int'(CVA6ConfigNrStorePipeRegs),
       DcacheIdWidth: int'(CVA6ConfigDcacheIdWidth),
-      BranchPredictorImpl: unsigned'(CVA6ConfigBranchPredictorImpl)
+      BranchPredictorImpl: config_pkg::bp_t'(CVA6ConfigBranchPredictorImpl),
+      BHTEntries: unsigned'(CVA6ConfigBHTEntries),
+      ChoicePredictorSize: unsigned'(CVA6ConfigChoicePredictorSize),
+      GlobalPredictorSize: unsigned'(CVA6ConfigGlobalPredictorSize),
+      LocalPredictorSize: unsigned'(CVA6ConfigLocalPredictorSize),
+      LocalHistoryTableSize: unsigned'(CVA6ConfigLocalHistoryTableSize)
   };
-
 endpackage

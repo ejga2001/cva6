@@ -17,15 +17,44 @@ ips := xlnx_axi_clock_converter.xci  \
 ips := $(addprefix $(work-dir)/, $(ips))
 ips-target := $(join $(addsuffix /ip/, $(addprefix $(ip-dir)/, $(basename $(ips)))), $(ips))
 
-all: $(bit)
+BRANCH_PRED_IMPL := 3
+BHT_ENTRIES := 1024
+MBP_ENTRIES := 1024
+GBP_ENTRIES := 1024
+LBP_ENTRIES := 1024
+LHR_ENTRIES := 1024
+
+all: $(ips) $(bit)
+
+ips_rule: $(ips)
+
+bit_bht:
+	mkdir -p $(work-dir)
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_bht.tcl -tclargs $(BHT_ENTRIES)
+	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
+
+bit_gbp:
+	mkdir -p $(work-dir)
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_gbp.tcl -tclargs $(GBP_ENTRIES)
+	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
+
+bit_lbp:
+	mkdir -p $(work-dir)
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_lbp.tcl -tclargs $(LBP_ENTRIES) $(LHR_ENTRIES)
+	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
+
+bit_tournament:
+	mkdir -p $(work-dir)
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_tournament.tcl -tclargs $(MBP_ENTRIES) $(GBP_ENTRIES) $(LBP_ENTRIES) $(LHR_ENTRIES)
+	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
 
 # Generate mcs from bitstream
 $(mcs): $(bit)
 	$(VIVADO) $(VIVADOFLAGS) -source scripts/write_cfgmem.tcl -tclargs $@ $^
 
-$(bit): $(ips)
+$(bit):
 	mkdir -p $(work-dir)
-	$(VIVADO) $(VIVADOFLAGS) -source scripts/run.tcl
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run.tcl -tclargs $(BRANCH_PRED_IMPL) $(BHT_ENTRIES)
 	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
 
 $(ips): %.xci :
@@ -40,7 +69,7 @@ program:
 	$(VIVADO) $(VIVADOFLAGS) -source scripts/program.tcl
 
 clean:
-	rm -rf *.log *.jou *.str *.mif *.xpr $(work-dir) ariane.cache ariane.hw ariane.ip_user_files scripts/vivado*
+	rm -rf *.log *.jou *.str *.mif *.xpr $(work-dir) bitstreams xilinx_projects ariane.cache ariane.hw ariane.ip_user_files scripts/vivado*
 
 .PHONY:
 	clean

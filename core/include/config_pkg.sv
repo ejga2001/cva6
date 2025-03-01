@@ -8,12 +8,19 @@
 // Original Author: Jean-Roch COULON - Thales
 
 package config_pkg;
-
   // ---------------
   // Global Config
   // ---------------
   localparam int unsigned ILEN = 32;
   localparam int unsigned NRET = 1;
+
+  typedef enum logic [2:0] {
+    BimodalBP,
+    GlobalBP,
+    LocalBP,
+    TournamentBP,
+    TAGE
+  } bp_t;
 
   /// The NoC type is a top-level parameter, hence we need a bit more
   /// information on what protocol those type parameters are supporting.
@@ -192,8 +199,6 @@ package config_pkg;
     int unsigned                 RASDepth;
     // Branch target buffer entries
     int unsigned                 BTBEntries;
-    // Branch history entries
-    int unsigned                 BHTEntries;
     // MMU instruction TLB entries
     int unsigned                 InstrTlbEntries;
     // MMU data TLB entries
@@ -203,7 +208,12 @@ package config_pkg;
     // MMU depth of shared TLB
     int unsigned                 SharedTlbDepth;
     // Branch Predictor implementation
-    int unsigned                 BranchPredictorImpl;
+    bp_t                         BranchPredictorImpl;
+    int unsigned                 BHTEntries;
+    int unsigned                 ChoicePredictorSize;
+    int unsigned                 GlobalPredictorSize;
+    int unsigned                 LocalPredictorSize;
+    int unsigned                 LocalHistoryTableSize;
   } cva6_user_cfg_t;
 
   typedef struct packed {
@@ -275,7 +285,6 @@ package config_pkg;
     logic [63:0] ExceptionAddress;
     int unsigned RASDepth;
     int unsigned BTBEntries;
-    int unsigned BHTEntries;
     int unsigned InstrTlbEntries;
     int unsigned DataTlbEntries;
     bit unsigned UseSharedTlb;
@@ -355,8 +364,13 @@ package config_pkg;
     int unsigned X_DUALWRITE;
     int unsigned X_ISSUE_REGISTER_SPLIT;
 
-    int unsigned BRANCH_PREDICTOR_IMPL; // 0 = DEFAULT, 1 = TOURNAMENT
-
+    // Branch Predictor implementation
+    bp_t                         BranchPredictorImpl;
+    int unsigned                 BHTEntries;
+    int unsigned                 ChoicePredictorSize;
+    int unsigned                 GlobalPredictorSize;
+    int unsigned                 LocalPredictorSize;
+    int unsigned                 LocalHistoryTableSize;
   } cva6_cfg_t;
 
   /// Empty configuration to sanity check proper parameter passing. Whenever

@@ -14,12 +14,10 @@
 
 # Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
 
-set BRANCH_PRED_IMPL [lindex $argv 0]
-set BHT_ENTRIES      [lindex $argv 1]
-set MBP_ENTRIES      [lindex $argv 2]
-set GBP_ENTRIES      [lindex $argv 3]
-set LBP_ENTRIES      [lindex $argv 4]
-set LHR_ENTRIES      [lindex $argv 5]
+set MBP_ENTRIES      [lindex $argv 0]
+set GBP_ENTRIES      [lindex $argv 1]
+set LBP_ENTRIES      [lindex $argv 2]
+set LHR_ENTRIES      [lindex $argv 3]
 
 # hard-coded to Genesys 2 for the moment
 
@@ -87,8 +85,7 @@ update_compile_order -fileset sources_1
 
 add_files -fileset constrs_1 -norecurse constraints/$project.xdc
 
-synth_design -rtl -name rtl_1 -verilog_define BRANCH_PRED_IMPL=$BRANCH_PRED_IMPL \
-                              -verilog_define BHT_ENTRIES=$BHT_ENTRIES \
+synth_design -rtl -name rtl_1 -verilog_define BRANCH_PRED_IMPL=3 \
                               -verilog_define MBP_ENTRIES=$MBP_ENTRIES \
                               -verilog_define GBP_ENTRIES=$GBP_ENTRIES \
                               -verilog_define LBP_ENTRIES=$LBP_ENTRIES \
