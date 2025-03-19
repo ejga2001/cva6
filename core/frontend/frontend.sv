@@ -326,14 +326,13 @@ module frontend
     assign speculative_d = (speculative_q && !resolved_branch_i.valid || |is_branch || |is_return || |is_jalr) && !flush_i;
     assign icache_dreq_o.spec = speculative_d;
 
-    assign bht_update.valid = resolved_branch_i.valid
-        & (resolved_branch_i.cf_type == ariane_pkg::Branch);
+    assign bht_update.valid = resolved_branch_i.valid & (resolved_branch_i.cf_type == ariane_pkg::Branch);
     assign bht_update.pc = resolved_branch_i.pc;
     assign bht_update.taken = resolved_branch_i.is_taken;
     // only update mispredicted branches e.g. no returns from the RAS
     assign btb_update.valid = resolved_branch_i.valid
-        & resolved_branch_i.is_mispredict
-        & (resolved_branch_i.cf_type == ariane_pkg::JumpR);
+                            & resolved_branch_i.is_mispredict
+                            & (resolved_branch_i.cf_type == ariane_pkg::JumpR);
     assign btb_update.pc = resolved_branch_i.pc;
     assign btb_update.target_address = resolved_branch_i.target_address;
 
@@ -372,9 +371,7 @@ module frontend
         end
         // 1. Default assignment
         if (if_ready) begin
-            npc_d = {
-                fetch_address[CVA6Cfg.VLEN-1:CVA6Cfg.FETCH_ALIGN_BITS] + 1, {CVA6Cfg.FETCH_ALIGN_BITS{1'b0}}
-                };
+            npc_d = {fetch_address[CVA6Cfg.VLEN-1:CVA6Cfg.FETCH_ALIGN_BITS] + 1, {CVA6Cfg.FETCH_ALIGN_BITS{1'b0}}};
         end
         // 2. Replay instruction fetch
         if (replay) begin

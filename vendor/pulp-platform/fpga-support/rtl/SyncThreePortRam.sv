@@ -47,8 +47,8 @@ module SyncThreePortRam
       mem[WrAddr_DI] <= WrData_DI;
     end
     
-    RdData_DO_0 = mem[RdAddr_DI_0];
-    RdData_DO_1 = mem[RdAddr_DI_1];
+    RdData_DO_0 <= mem[RdAddr_DI_0];
+    RdData_DO_1 <= mem[RdAddr_DI_1];
   
   end
   
