@@ -164,6 +164,8 @@ export -f generate_bitstream_gbp
 export -f generate_bitstream_lbp
 export -f generate_bitstream_tournament
 
+source "/home/enriquejga/Xilinx/Vivado/2018.2/settings64.sh"
+
 make -C corev_apu/fpga ips_rule BOARD=$BOARD \
                   XILINX_PART=$XILINX_PART \
                   XILINX_BOARD=$XILINX_BOARD \
@@ -180,8 +182,6 @@ fi
 if [ ! -d  corev_apu/fpga/logs ]; then
     mkdir corev_apu/fpga/logs
 fi
-
-source "/home/enriquejga/Xilinx/Vivado/2018.2/settings64.sh"
 
 temp=$(mktemp)
 for (( i = 0; i < ${#BRANCH_PRED_IMPL_NAMES[@]}; i++ )); do
