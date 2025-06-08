@@ -185,6 +185,17 @@ package build_config_pkg;
     cfg.LocalPredictorSize = CVA6Cfg.LocalPredictorSize;
     cfg.LocalHistoryTableSize = CVA6Cfg.LocalHistoryTableSize;
 
+    cfg.BHTIndexBits = CVA6Cfg.BHTIndexBits - $clog2(cfg.INSTR_PER_FETCH);
+    cfg.ChoicePredictorIndexBits = CVA6Cfg.ChoicePredictorIndexBits - $clog2(cfg.INSTR_PER_FETCH);
+    cfg.GlobalPredictorIndexBits = CVA6Cfg.GlobalPredictorIndexBits - $clog2(cfg.INSTR_PER_FETCH);
+    cfg.LocalPredictorIndexBits = CVA6Cfg.LocalPredictorIndexBits - $clog2(cfg.INSTR_PER_FETCH);
+    cfg.LocalHistoryTableIndexBits = CVA6Cfg.LocalHistoryTableIndexBits - $clog2(cfg.INSTR_PER_FETCH);
+
+    cfg.BimodalCtrBits = CVA6Cfg.BimodalCtrBits;
+    cfg.ChoiceCtrBits = CVA6Cfg.ChoiceCtrBits;
+    cfg.GlobalCtrBits = CVA6Cfg.GlobalCtrBits;
+    cfg.LocalCtrBits = CVA6Cfg.LocalCtrBits;
+
     return cfg;
   endfunction
 

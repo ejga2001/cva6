@@ -76,8 +76,10 @@ module instr_queue
     input logic [CVA6Cfg.VLEN-1:0] predict_address_i,
     // Instruction predict address - FRONTEND
     input ariane_pkg::cf_t [CVA6Cfg.INSTR_PER_FETCH-1:0] cf_type_i,
-    // Replay instruction because one of the FIFO was  full - FRONTEND
-    output logic replay_o,
+    // input from branch predictor to see if the fetch target queue overflows
+    input logic ftq_overflow_i,
+    // Replay instruction because one of the FIFO was full - FRONTEND
+    output logic overflow_o,
     // Address at which to replay the fetch - FRONTEND
     output logic [CVA6Cfg.VLEN-1:0] replay_addr_o,
     // Handshake’s data with ID_STAGE - ID_STAGE
@@ -112,6 +114,7 @@ module instr_queue
   // address queue
   logic [           CVA6Cfg.VLEN-1:0] address_out;
   logic                               pop_address;
+  logic                               valid_cf_push;
   logic                               push_address;
   logic                               full_address;
   logic                               address_overflow;
@@ -134,8 +137,8 @@ module instr_queue
   logic [CVA6Cfg.INSTR_PER_FETCH-1:0] branch_mask;
   logic [CVA6Cfg.INSTR_PER_FETCH-1:0] taken;
   // shift amount, e.g.: instructions we want to retire
-  logic [CVA6Cfg.LOG2_INSTR_PER_FETCH:0] popcount;
-  logic [CVA6Cfg.LOG2_INSTR_PER_FETCH-1:0] shamt;
+  logic [CVA6Cfg.LOG2_INSTR_PER_FETCH:0] popcount, popcount_push_instr;
+  logic [CVA6Cfg.LOG2_INSTR_PER_FETCH-1:0] shamt, shamt_push_instr;
   logic [CVA6Cfg.INSTR_PER_FETCH-1:0] valid;
   logic [CVA6Cfg.INSTR_PER_FETCH*2-1:0] consumed_extended;
   // FIFO mask
@@ -280,15 +283,24 @@ module instr_queue
     assign instr_overflow_fifo = instr_queue_full & valid_i;
   end
   assign instr_overflow = |instr_overflow_fifo;  // at least one instruction overflowed
-  assign address_overflow = full_address & push_address;
-  assign replay_o = instr_overflow | address_overflow;
+  assign address_overflow = full_address & valid_cf_push;
+  assign overflow_o = instr_overflow | address_overflow;
 
   if (CVA6Cfg.RVC) begin : gen_replay_addr_o_with_c
     // select the address, in the case of an address fifo overflow just
     // use the base of this package
     // if we successfully pushed some instructions we can output the next instruction
     // which we didn't manage to push
-    assign replay_addr_o = (address_overflow) ? addr_i[0] : addr_i[shamt];
+    // this count doesn't include other overflows
+    popcount #(
+      .INPUT_WIDTH   (CVA6Cfg.INSTR_PER_FETCH)
+    ) i_popcount_push_instr (
+      .data_i     (push_instr),
+      .popcount_o (popcount_push_instr)
+    );
+    assign shamt_push_instr = popcount_push_instr[$bits(shamt_push_instr)-1:0];
+    assign replay_addr_o = address_overflow ? addr_i[0] : addr_i[shamt_push_instr];
+    //assign replay_addr_o = (address_overflow) ? addr_i[0] : addr_i[shamt];
   end else begin : gen_replay_addr_o_without_C
     assign replay_addr_o = addr_i[0];
   end
@@ -459,7 +471,8 @@ module instr_queue
   // FIFOs
   for (genvar i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin : gen_instr_fifo
     // Make sure we don't save any instructions if we couldn't save the address
-    assign push_instr_fifo[i] = push_instr[i] & ~address_overflow;
+    //assign push_instr_fifo[i] = push_instr[i] & ~address_overflow;
+    assign push_instr_fifo[i] = push_instr[i] & ~address_overflow & ~ftq_overflow_i;
     cva6_fifo_v3 #(
         .FPGA_ALTERA(CVA6Cfg.FpgaAlteraEn),
         .DEPTH(ariane_pkg::FETCH_FIFO_DEPTH),
@@ -482,11 +495,12 @@ module instr_queue
   // or reduce and check whether we are retiring a taken branch (might be that the corresponding)
   // fifo is full.
   always_comb begin
-    push_address = 1'b0;
+    valid_cf_push = 1'b0;
     // check if we are pushing a ctrl flow change, if so save the address
     for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
-      push_address |= push_instr[i] & (instr_data_in[i].cf != ariane_pkg::NoCF);
+      valid_cf_push |= push_instr[i] & (instr_data_in[i].cf != ariane_pkg::NoCF);
     end
+    push_address = valid_cf_push & ~full_address & ~ftq_overflow_i;
   end
 
   cva6_fifo_v3 #(
@@ -553,7 +567,7 @@ module instr_queue
   // pragma translate_off
 `ifndef VERILATOR
   replay_address_fifo :
-  assert property (@(posedge clk_i) disable iff (!rst_ni) replay_o |-> !i_fifo_address.push_i)
+  assert property (@(posedge clk_i) disable iff (!rst_ni) overflow_o & ftq_overflow_i |-> !i_fifo_address.push_i)
   else $fatal(1, "[instr_queue] Pushing address although replay asserted");
 
   output_select_onehot :

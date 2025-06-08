@@ -54,7 +54,7 @@ pip3 install -r verif/sim/dv/requirements.txt
 # DV_SIMULATORS is detailed in the next section
 export DV_SIMULATORS=veri-testharness
 export TRACE_FAST=1
-bash verif/regress/smoke-tests-cv32a65x.sh
+bash verif/regress/smoke-tests-cv64a6_imafdc_sv39.sh
 ```
 
 # Running standalone simulations

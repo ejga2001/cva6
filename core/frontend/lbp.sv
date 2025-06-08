@@ -24,6 +24,7 @@
 module lbp #(
   parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter type bht_update_t = logic,
+  parameter type bht_prediction_t = logic,
   parameter int unsigned LBP_ENTRIES = 512,
   parameter int unsigned LHR_ENTRIES = 512
 ) (
@@ -39,8 +40,12 @@ module lbp #(
   input logic [CVA6Cfg.VLEN-1:0] vpc_i,
   // Update bht with resolved address - EXECUTE
   input bht_update_t bht_update_i,
+  // Update bht with saved index - FTQ
+  input logic [CVA6Cfg.LocalPredictorIndexBits-1:0] update_index_i,
   // Prediction from bht - FRONTEND
-  output ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o
+  output bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
+  // BHT index to store it for a future update - FRONTEND
+  output logic [CVA6Cfg.BHTIndexBits-1:0] index_o
 );
   // the last bit is always zero, we don't need it for indexing
   localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
@@ -56,6 +61,11 @@ module lbp #(
 
   // Branch Prediction Register bits
   localparam LHR_WORD_BITS = $clog2(NR_ROWS_LBP);
+
+  typedef struct packed {
+    logic                            valid;
+    logic [CVA6Cfg.LocalCtrBits-1:0] saturation_counter;
+  } lbp_t;
 
   struct packed {
     logic       valid;
@@ -131,7 +141,7 @@ module lbp #(
   end else begin : gen_fpga_bht  //FPGA TARGETS
 
     // number of bits par word in the bram
-    localparam BRAM_WORD_BITS = $bits(ariane_pkg::bht_t);
+    localparam BRAM_WORD_BITS = $bits(lbp_t);
     logic [ROW_INDEX_BITS-1:0] row_index, row_index_q, check_row_index;
     logic [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_ram_we, bht_ram_we_q;
     logic [CVA6Cfg.INSTR_PER_FETCH*$clog2(NR_ROWS_LBP)-1:0] bht_ram_read_address_0;
@@ -149,8 +159,8 @@ module lbp #(
     logic [CVA6Cfg.INSTR_PER_FETCH*LHR_WORD_BITS-1:0] lhr_ram_rdata_0;
     logic [CVA6Cfg.INSTR_PER_FETCH*LHR_WORD_BITS-1:0] lhr_ram_rdata_1;
 
-    ariane_pkg::bht_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht;
-    ariane_pkg::bht_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_updated;
+    lbp_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht;
+    lbp_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_updated;
     logic [CVA6Cfg.INSTR_PER_FETCH-1:0][LHR_WORD_BITS-1:0] lhr;
     logic [CVA6Cfg.INSTR_PER_FETCH-1:0][LHR_WORD_BITS-1:0] lhr_updated;
 
@@ -190,12 +200,10 @@ module lbp #(
         for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
           if (update_row_index == i) begin
             lhr_ram_we[i] = 1'b1;
-            lhr_ram_write_address[i*$clog2(NR_ROWS_LHR)+:$clog2(NR_ROWS_LHR)] = update_pc;
-            lhr_ram_read_address_1[i*$clog2(NR_ROWS_LHR)+:$clog2(NR_ROWS_LHR)] = update_pc;
-            lhr[i] = lhr_ram_rdata_1[i*LHR_WORD_BITS+:LHR_WORD_BITS];
             bht_updated[i].valid = 1'b1;
             bht_ram_we[i] = 1'b1;
-            bht_ram_write_address[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = lhr[i];
+            lhr_ram_write_address[i*$clog2(NR_ROWS_LHR)+:$clog2(NR_ROWS_LHR)] = update_pc;
+            bht_ram_write_address[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = update_index_i;
           end
         end
       end
@@ -204,8 +212,10 @@ module lbp #(
         if (check_update_row_index == i) begin
           //When asynchronous RAM is used, the address can be updated on the cycle when data is read
           if (!CVA6Cfg.FpgaAlteraEn) begin
-            bht_ram_read_address_1[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = lhr[i];
+            lhr_ram_read_address_1[i*$clog2(NR_ROWS_LHR)+:$clog2(NR_ROWS_LHR)] = update_pc;
+            bht_ram_read_address_1[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = update_index_i;
           end
+          lhr[i] = lhr_ram_rdata_1[i*LHR_WORD_BITS+:LHR_WORD_BITS];
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
           case (bht[i].saturation_counter)
             2'b00: begin
@@ -226,9 +236,9 @@ module lbp #(
           endcase
           lhr_updated[i] = {lhr[i][LHR_WORD_BITS-2:0], check_bht_update_taken};
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
+          lhr_ram_wdata[i*LHR_WORD_BITS+:LHR_WORD_BITS] = lhr_updated[i];
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
               {bht_updated[i].valid, bht_updated[i].saturation_counter};
-          lhr_ram_wdata[i*LHR_WORD_BITS+:LHR_WORD_BITS] = lhr_updated[i];
         end
 
         if (!rst_ni) begin
@@ -240,19 +250,20 @@ module lbp #(
             lhr_ram_read_address_0[i*$clog2(NR_ROWS_LHR)+:$clog2(NR_ROWS_LHR)] = index;
             bht_ram_read_address_0[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = lhr_ram_rdata_0[i*LHR_WORD_BITS+:LHR_WORD_BITS];
           end
+          index_o = lhr_ram_rdata_0[i*LHR_WORD_BITS+:LHR_WORD_BITS];
           //When synchronous RAM is used and data is read right after writing, we need some buffering
           // This is one cycle of buffering
           if (CVA6Cfg.FpgaAlteraEn && bht_updated_valid[i][0] && vpc_q == bht_updated_pc[i][0]) begin
-            bht_prediction_o[i].valid = bht_ram_wdata[i*BRAM_WORD_BITS+2];
-            bht_prediction_o[i].taken = bht_ram_wdata[i*BRAM_WORD_BITS+1];
+            bht_prediction_o[i].valid = bht_ram_wdata[i*BRAM_WORD_BITS+CVA6Cfg.LocalCtrBits];
+            bht_prediction_o[i].taken = bht_ram_wdata[i*BRAM_WORD_BITS+(CVA6Cfg.LocalCtrBits-1)];
             //This is two cycles of buffering
           end else if (CVA6Cfg.FpgaAlteraEn && bht_updated_valid[i][1] && vpc_q == bht_updated_pc[i][1]) begin
-            bht_prediction_o[i].valid = bht_ram_wdata_q[i*BRAM_WORD_BITS+2];
-            bht_prediction_o[i].taken = bht_ram_wdata_q[i*BRAM_WORD_BITS+1];
+            bht_prediction_o[i].valid = bht_ram_wdata_q[i*BRAM_WORD_BITS+CVA6Cfg.LocalCtrBits];
+            bht_prediction_o[i].taken = bht_ram_wdata_q[i*BRAM_WORD_BITS+(CVA6Cfg.LocalCtrBits-1)];
             //In any other case we can safely read from the RAM as data is available
           end else begin
-            bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+2];
-            bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+1];
+            bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+CVA6Cfg.LocalCtrBits];
+            bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+(CVA6Cfg.LocalCtrBits-1)];
           end
         end
       end

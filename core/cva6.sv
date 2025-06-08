@@ -15,6 +15,8 @@
 `include "rvfi_types.svh"
 `include "cvxif_types.svh"
 
+`define GET_BP_METADATA_T(impl_num) bp_``impl_num``_metadata_t
+
 module cva6
   import ariane_pkg::*;
 #(
@@ -350,6 +352,30 @@ module cva6
       HS_EXT: (1 << (CVA6Cfg.XLEN - 1)) | CVA6Cfg.XLEN'(riscv::IRQ_HS_EXT)
   };
 
+  localparam type bht_prediction_t = struct packed {
+    logic                    valid;
+    logic                    taken;
+  };
+
+  typedef struct packed {
+    logic [CVA6Cfg.BHTIndexBits-1:0] index;
+  } bp_0_metadata_t;
+
+  typedef struct packed {
+    logic [CVA6Cfg.GlobalPredictorIndexBits-1:0] index;
+  } bp_1_metadata_t;
+
+  typedef struct packed {
+    logic [CVA6Cfg.LocalPredictorIndexBits-1:0] index;
+  } bp_2_metadata_t;
+
+  typedef struct packed {
+    logic [CVA6Cfg.GlobalPredictorIndexBits-1:0] gindex;
+    bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] gbp_pred;
+    logic [CVA6Cfg.LocalPredictorIndexBits-1:0] lindex;
+    bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] lbp_pred;
+  } bp_3_metadata_t;
+
   // ------------------------------------------
   // Global Signals
   // Signals connecting more than one module
@@ -647,7 +673,9 @@ module cva6
       .bp_resolve_t(bp_resolve_t),
       .fetch_entry_t(fetch_entry_t),
       .icache_dreq_t(icache_dreq_t),
-      .icache_drsp_t(icache_drsp_t)
+      .icache_drsp_t(icache_drsp_t),
+      .bp_metadata_t(`GET_BP_METADATA_T(`BRANCH_PRED_IMPL)),
+      .bht_prediction_t(bht_prediction_t)
   ) i_frontend (
       .clk_i,
       .rst_ni,

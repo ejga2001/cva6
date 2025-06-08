@@ -183,7 +183,7 @@ for (( i = 0; i < ${#BRANCH_PRED_IMPL_NAMES[@]}; i++ )); do
     done
 done
 
-cat "$temp" | xargs -P2 -I{} bash -c '
+cat "$temp" | xargs -P1 -I{} bash -c '
   tuple="{}"
   impl=$(echo ${tuple} | tr -s " " | cut -d " " -f1,1)
   impl_name=$(echo ${tuple} | tr -s " " | cut -d " " -f2,2)

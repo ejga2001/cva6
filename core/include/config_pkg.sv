@@ -214,6 +214,15 @@ package config_pkg;
     int unsigned                 GlobalPredictorSize;
     int unsigned                 LocalPredictorSize;
     int unsigned                 LocalHistoryTableSize;
+    int unsigned                 BHTIndexBits;
+    int unsigned                 ChoicePredictorIndexBits;
+    int unsigned                 GlobalPredictorIndexBits;
+    int unsigned                 LocalPredictorIndexBits;
+    int unsigned                 LocalHistoryTableIndexBits;
+    int unsigned                 BimodalCtrBits;
+    int unsigned                 ChoiceCtrBits;
+    int unsigned                 GlobalCtrBits;
+    int unsigned                 LocalCtrBits;
   } cva6_user_cfg_t;
 
   typedef struct packed {
@@ -371,6 +380,15 @@ package config_pkg;
     int unsigned                 GlobalPredictorSize;
     int unsigned                 LocalPredictorSize;
     int unsigned                 LocalHistoryTableSize;
+    int unsigned                 BHTIndexBits;
+    int unsigned                 ChoicePredictorIndexBits;
+    int unsigned                 GlobalPredictorIndexBits;
+    int unsigned                 LocalPredictorIndexBits;
+    int unsigned                 LocalHistoryTableIndexBits;
+    int unsigned                 BimodalCtrBits;
+    int unsigned                 ChoiceCtrBits;
+    int unsigned                 GlobalCtrBits;
+    int unsigned                 LocalCtrBits;
   } cva6_cfg_t;
 
   /// Empty configuration to sanity check proper parameter passing. Whenever

@@ -31,6 +31,22 @@
   `define LHR_ENTRIES 1024
 `endif
 
+`ifndef BHT_CTR_BITS
+ `define BHT_CTR_BITS 2
+`endif
+
+`ifndef CHOICE_CTR_BITS
+  `define CHOICE_CTR_BITS 2
+`endif
+
+`ifndef GLOBAL_CTR_BITS
+  `define GLOBAL_CTR_BITS 2
+`endif
+
+`ifndef LOCAL_CTR_BITS
+  `define LOCAL_CTR_BITS 2
+`endif
+
 package cva6_config_pkg;
   localparam CVA6ConfigXlen = 64;
 
@@ -85,6 +101,15 @@ package cva6_config_pkg;
   localparam CVA6ConfigGlobalPredictorSize = `GBP_ENTRIES;
   localparam CVA6ConfigLocalPredictorSize = `LBP_ENTRIES;
   localparam CVA6ConfigLocalHistoryTableSize = `LHR_ENTRIES;
+  localparam CVA6ConfigBHTIndexBits = $clog2(`BHT_ENTRIES);
+  localparam CVA6ConfigChoicePredictorIndexBits = $clog2(`MBP_ENTRIES);
+  localparam CVA6ConfigGlobalPredictorIndexBits = $clog2(`GBP_ENTRIES);
+  localparam CVA6ConfigLocalPredictorIndexBits = $clog2(`LBP_ENTRIES);
+  localparam CVA6ConfigLocalHistoryTableIndexBits = $clog2(`LHR_ENTRIES);
+  localparam CVA6ConfigBimodalCtrBits = `BHT_CTR_BITS;
+  localparam CVA6ConfigChoiceCtrBits = `CHOICE_CTR_BITS;
+  localparam CVA6ConfigGlobalCtrBits = `GLOBAL_CTR_BITS;
+  localparam CVA6ConfigLocalCtrBits = `LOCAL_CTR_BITS;
 
   localparam CVA6ConfigTvalEn = 1;
 
@@ -181,6 +206,15 @@ package cva6_config_pkg;
       ChoicePredictorSize: unsigned'(CVA6ConfigChoicePredictorSize),
       GlobalPredictorSize: unsigned'(CVA6ConfigGlobalPredictorSize),
       LocalPredictorSize: unsigned'(CVA6ConfigLocalPredictorSize),
-      LocalHistoryTableSize: unsigned'(CVA6ConfigLocalHistoryTableSize)
+      LocalHistoryTableSize: unsigned'(CVA6ConfigLocalHistoryTableSize),
+      BHTIndexBits: unsigned'(CVA6ConfigBHTIndexBits),
+      ChoicePredictorIndexBits: unsigned'(CVA6ConfigChoicePredictorIndexBits),
+      GlobalPredictorIndexBits: unsigned'(CVA6ConfigGlobalPredictorIndexBits),
+      LocalPredictorIndexBits: unsigned'(CVA6ConfigLocalPredictorIndexBits),
+      LocalHistoryTableIndexBits: unsigned'(CVA6ConfigLocalHistoryTableIndexBits),
+      BimodalCtrBits: unsigned'(CVA6ConfigBimodalCtrBits),
+      ChoiceCtrBits: unsigned'(CVA6ConfigChoiceCtrBits),
+      GlobalCtrBits: unsigned'(CVA6ConfigGlobalCtrBits),
+      LocalCtrBits: unsigned'(CVA6ConfigLocalCtrBits)
   };
 endpackage

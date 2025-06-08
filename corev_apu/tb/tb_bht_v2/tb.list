@@ -139,7 +139,6 @@ ${CVA6_REPO_DIR}/core/acc_dispatcher.sv
 ${CVA6_REPO_DIR}/core/cva6_fifo_v3.sv
 
 // What is "frontend"?
-${CVA6_REPO_DIR}/core/frontend/ftq.sv
 ${CVA6_REPO_DIR}/core/frontend/bht.sv
 ${CVA6_REPO_DIR}/core/frontend/gbp.sv
 ${CVA6_REPO_DIR}/core/frontend/lbp.sv
@@ -192,7 +191,7 @@ ${CVA6_REPO_DIR}/vendor/pulp-platform/tech_cells_generic/src/rtl/tc_sram.sv
 ${CVA6_REPO_DIR}/common/local/util/sram.sv
 ${CVA6_REPO_DIR}/common/local/util/sram_cache.sv
 
-// MMU 
+// MMU
 ${CVA6_REPO_DIR}/core/cva6_mmu/cva6_mmu.sv
 ${CVA6_REPO_DIR}/core/cva6_mmu/cva6_ptw.sv
 ${CVA6_REPO_DIR}/core/cva6_mmu/cva6_tlb.sv

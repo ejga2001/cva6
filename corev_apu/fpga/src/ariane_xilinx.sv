@@ -1163,7 +1163,7 @@ assign clk_200MHz_ref = ddr_clock_out;
 fan_ctrl i_fan_ctrl (
     .clk_i         ( clk        ),
     .rst_ni        ( ndmreset_n ),
-    .pwm_setting_i ( '1         ),
+    .pwm_setting_i ( 4'b10         ),
     .fan_pwm_o     ( fan_pwm    )
 );
 
