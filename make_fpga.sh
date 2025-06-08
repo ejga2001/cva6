@@ -181,6 +181,8 @@ if [ ! -d  corev_apu/fpga/logs ]; then
     mkdir corev_apu/fpga/logs
 fi
 
+source "/home/enriquejga/Xilinx/Vivado/2018.2/settings64.sh"
+
 temp=$(mktemp)
 for (( i = 0; i < ${#BRANCH_PRED_IMPL_NAMES[@]}; i++ )); do
     impl_name=${BRANCH_PRED_IMPL_NAMES[$i]}
