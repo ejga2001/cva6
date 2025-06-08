@@ -15,6 +15,7 @@
 # Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
 
 set GBP_ENTRIES      [lindex $argv 0]
+set GLOBAL_CTR_BITS  [lindex $argv 1]
 
 # hard-coded to Genesys 2 for the moment
 
@@ -83,7 +84,8 @@ update_compile_order -fileset sources_1
 add_files -fileset constrs_1 -norecurse constraints/$project.xdc
 
 synth_design -rtl -name rtl_1 -verilog_define BRANCH_PRED_IMPL=1 \
-                              -verilog_define GBP_ENTRIES=$GBP_ENTRIES
+                              -verilog_define GBP_ENTRIES=$GBP_ENTRIES \
+                              -verilog_define GLOBAL_CTR_BITS=$GLOBAL_CTR_BITS
 
 set_property STEPS.SYNTH_DESIGN.ARGS.RETIMING true [get_runs synth_1]
 

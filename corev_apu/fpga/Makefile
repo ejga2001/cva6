@@ -23,6 +23,9 @@ MBP_ENTRIES := 1024
 GBP_ENTRIES := 1024
 LBP_ENTRIES := 1024
 LHR_ENTRIES := 1024
+BHT_CTR_BITS := 2
+GLOBAL_CTR_BITS := 2
+LOCAL_CTR_BITS := 2
 
 all: $(ips) $(bit)
 
@@ -30,17 +33,17 @@ ips_rule: $(ips)
 
 bit_bht:
 	mkdir -p $(work-dir)
-	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_bht.tcl -tclargs $(BHT_ENTRIES)
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_bht.tcl -tclargs $(BHT_ENTRIES) $(BHT_CTR_BITS)
 	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
 
 bit_gbp:
 	mkdir -p $(work-dir)
-	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_gbp.tcl -tclargs $(GBP_ENTRIES)
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_gbp.tcl -tclargs $(GBP_ENTRIES) $(GLOBAL_CTR_BITS)
 	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
 
 bit_lbp:
 	mkdir -p $(work-dir)
-	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_lbp.tcl -tclargs $(LBP_ENTRIES) $(LHR_ENTRIES)
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_lbp.tcl -tclargs $(LBP_ENTRIES) $(LHR_ENTRIES) $(LOCAL_CTR_BITS)
 	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
 
 bit_tournament:
@@ -54,7 +57,7 @@ $(mcs): $(bit)
 
 $(bit):
 	mkdir -p $(work-dir)
-	$(VIVADO) $(VIVADOFLAGS) -source scripts/run.tcl -tclargs $(BRANCH_PRED_IMPL) $(BHT_ENTRIES)
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run.tcl -tclargs $(BRANCH_PRED_IMPL) $(BHT_ENTRIES) $(BHT_CTR_BITS)
 	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
 
 $(ips): %.xci :

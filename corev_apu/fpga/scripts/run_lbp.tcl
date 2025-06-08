@@ -16,6 +16,7 @@
 
 set LBP_ENTRIES      [lindex $argv 0]
 set LHR_ENTRIES      [lindex $argv 1]
+set LOCAL_CTR_BITS   [lindex $argv 2]
 
 # hard-coded to Genesys 2 for the moment
 
@@ -85,7 +86,8 @@ add_files -fileset constrs_1 -norecurse constraints/$project.xdc
 
 synth_design -rtl -name rtl_1 -verilog_define BRANCH_PRED_IMPL=2 \
                               -verilog_define LBP_ENTRIES=$LBP_ENTRIES \
-                              -verilog_define LHR_ENTRIES=$LHR_ENTRIES
+                              -verilog_define LHR_ENTRIES=$LHR_ENTRIES \
+                              -verilog_define LOCAL_CTR_BITS=$LOCAL_CTR_BITS
 
 set_property STEPS.SYNTH_DESIGN.ARGS.RETIMING true [get_runs synth_1]
 

@@ -1,12 +1,13 @@
 #!/bin/bash
 
 BRANCH_PRED_IMPL_NAMES=("bht" "gbp" "lbp" "tournament")
-BHT_CONFIGS=("8192" "16384" "32768" "65536" "131072")
-GLOBAL_CONFIGS=("8192" "16384" "32768" "65536" "131072")
-LOCAL_CONFIGS=("4096-4096" "8192-8192" "16384-16384" "32768-32768" "65536-65536")
-TOURNAMENT_CONFIGS=("2048-2048-2048-2048" "4096-4096-4096-4096" "8192-8192-8192-8192" \
-                    "16384-16384-16384-16384" "32768-32768-32768-32768")
-ALL_CONFIGS=("BHT_CONFIGS" "GLOBAL_CONFIGS" "LOCAL_CONFIGS" "TOURNAMENT_CONFIGS")
+BHT_CONFIGS=("8192:3" "16384:3" "32768:3" "65536:3" "131072:3")
+GLOBAL_CONFIGS=("8192:3" "16384:3" "32768:3" "65536:3" "131072:3")
+LOCAL_CONFIGS=("4096:2048:1" "4096:4096:3" "8192:8192:2" "16384:16384:1" "65536:16384:2")
+#TOURNAMENT_CONFIGS=("2048:4096:4096:1024" "8192:8192:4096:2048" \
+#                    "4096:16384:16384:4096" "16384:16384:65536:4096" "32768:32768:65536:16384")
+#ALL_CONFIGS=("BHT_CONFIGS" "GLOBAL_CONFIGS" "LOCAL_CONFIGS" "TOURNAMENT_CONFIGS")
+ALL_CONFIGS=("BHT_CONFIGS" "GLOBAL_CONFIGS" "LOCAL_CONFIGS")
 
 export BOARD=$1
 export XILINX_PART=$2
@@ -16,7 +17,8 @@ export CLK_PERIOD_NS=$4
 generate_bitstream_bht() {
     impl=$1
     impl_name=$2
-    bht_entries=$3
+    bht_entries=$(echo $3 | cut -d ":" -f1,1)
+    ctr_bits=$(echo $3 | cut -d ":" -f2,2)
     fpga_tmp=$(mktemp -d)
 
     cp -Rf common $fpga_tmp
@@ -29,7 +31,8 @@ generate_bitstream_bht() {
                                XILINX_BOARD=$XILINX_BOARD \
                                CLK_PERIOD_NS=$CLK_PERIOD_NS \
                                BRANCH_PRED_IMPL=${impl} \
-                               BHT_ENTRIES=${bht_entries}
+                               BHT_ENTRIES=${bht_entries} \
+                               BHT_CTR_BITS=${ctr_bits}
 
     if [ $? -ne 0 ]; then
         echo "Error: MAKE command failed for BRANCH_PRED_IMPL=${impl_name}"
@@ -37,7 +40,7 @@ generate_bitstream_bht() {
         exit 1
     fi
 
-    suffix_name=${impl}_"bht=${bht_entries}"
+    suffix_name=${impl}_"bht=${bht_entries}_ctrbits=${ctr_bits}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
     cp -Rf $fpga_tmp/corev_apu/fpga/ariane.xpr corev_apu/fpga/xilinx_projects/ariane_${suffix_name}.xpr
@@ -48,7 +51,8 @@ generate_bitstream_bht() {
 generate_bitstream_gbp() {
     impl=$1
     impl_name=$2
-    gbp_entries=$3
+    gbp_entries=$(echo $3 | cut -d ":" -f1,1)
+    ctr_bits=$(echo $3 | cut -d ":" -f2,2)
 
     fpga_tmp=$(mktemp -d)
 
@@ -62,7 +66,8 @@ generate_bitstream_gbp() {
                                XILINX_BOARD=$XILINX_BOARD \
                                CLK_PERIOD_NS=$CLK_PERIOD_NS \
                                BRANCH_PRED_IMPL=${impl} \
-                               GBP_ENTRIES=${gbp_entries}
+                               GBP_ENTRIES=${gbp_entries} \
+                               GLOBAL_CTR_BITS=${ctr_bits}
 
     if [ $? -ne 0 ]; then
         echo "Error: MAKE command failed for BRANCH_PRED_IMPL=${impl_name}"
@@ -70,7 +75,7 @@ generate_bitstream_gbp() {
         exit 1
     fi
 
-    suffix_name=${impl}_"gbp=${gbp_entries}"
+    suffix_name=${impl}_"gbp=${gbp_entries}_ctrbits=${ctr_bits}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
     cp -Rf $fpga_tmp/corev_apu/fpga/ariane.xpr corev_apu/fpga/xilinx_projects/ariane_${suffix_name}.xpr
@@ -81,8 +86,9 @@ generate_bitstream_gbp() {
 generate_bitstream_lbp() {
     impl=$1
     impl_name=$2
-    lbp_entries=$(echo "$3" | tr "-" " " | cut -d " " -f1,1)
-    lhr_entries=$(echo "$3" | tr "-" " " | cut -d " " -f2,2)
+    lbp_entries=$(echo "$3" | cut -d ":" -f1,1)
+    lhr_entries=$(echo "$3" | cut -d ":" -f2,2)
+    ctr_bits=$(echo "$3"| cut -d ":" -f3,3)
 
     fpga_tmp=$(mktemp -d)
 
@@ -97,7 +103,8 @@ generate_bitstream_lbp() {
                                CLK_PERIOD_NS=$CLK_PERIOD_NS \
                                BRANCH_PRED_IMPL=${impl} \
                                LBP_ENTRIES=${lbp_entries} \
-                               LHR_ENTRIES=${lhr_entries}
+                               LHR_ENTRIES=${lhr_entries} \
+                               LOCAL_CTR_BITS=${ctr_bits}
 
     if [ $? -ne 0 ]; then
         echo "Error: MAKE command failed for BRANCH_PRED_IMPL=${impl_name}"
@@ -105,7 +112,7 @@ generate_bitstream_lbp() {
         exit 1
     fi
 
-    suffix_name=${impl}_"lbp=${lbp_entries}_lhr=${lhr_entries}"
+    suffix_name=${impl}_"lbp=${lbp_entries}_lhr=${lhr_entries}_ctrbits=${ctr_bits}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
     cp -Rf $fpga_tmp/corev_apu/fpga/ariane.xpr corev_apu/fpga/xilinx_projects/ariane_${suffix_name}.xpr
