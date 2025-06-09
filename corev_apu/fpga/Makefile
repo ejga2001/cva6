@@ -24,6 +24,7 @@ GBP_ENTRIES := 1024
 LBP_ENTRIES := 1024
 LHR_ENTRIES := 1024
 BHT_CTR_BITS := 2
+CHOICE_CTR_BITS := 2
 GLOBAL_CTR_BITS := 2
 LOCAL_CTR_BITS := 2
 
@@ -48,7 +49,7 @@ bit_lbp:
 
 bit_tournament:
 	mkdir -p $(work-dir)
-	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_tournament.tcl -tclargs $(MBP_ENTRIES) $(GBP_ENTRIES) $(LBP_ENTRIES) $(LHR_ENTRIES)
+	$(VIVADO) $(VIVADOFLAGS) -source scripts/run_tournament.tcl -tclargs $(MBP_ENTRIES) $(GBP_ENTRIES) $(LBP_ENTRIES) $(LHR_ENTRIES) $(CHOICE_CTR_BITS) $(GLOBA_CTR_BITS) $(LOCAL_CTR_BITS)
 	cp ariane.runs/impl_1/ariane_xilinx* ./$(work-dir)
 
 # Generate mcs from bitstream

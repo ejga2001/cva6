@@ -4,10 +4,9 @@ BRANCH_PRED_IMPL_NAMES=("bht" "gbp" "lbp" "tournament")
 BHT_CONFIGS=("8192:3" "16384:3" "32768:3" "65536:3" "131072:3")
 GLOBAL_CONFIGS=("8192:3" "16384:3" "32768:3" "65536:3" "131072:3")
 LOCAL_CONFIGS=("4096:2048:1" "4096:4096:3" "8192:8192:2" "16384:16384:1" "65536:16384:2")
-#TOURNAMENT_CONFIGS=("2048:4096:4096:1024" "8192:8192:4096:2048" \
-#                    "4096:16384:16384:4096" "16384:16384:65536:4096" "32768:32768:65536:16384")
-#ALL_CONFIGS=("BHT_CONFIGS" "GLOBAL_CONFIGS" "LOCAL_CONFIGS" "TOURNAMENT_CONFIGS")
-ALL_CONFIGS=("BHT_CONFIGS" "GLOBAL_CONFIGS" "LOCAL_CONFIGS")
+TOURNAMENT_CONFIGS=("1024:2048:4096:1024" "1024:4096:8192:2048" \
+                    "2048:16384:16384:2048" "8192:8192:32768:8192" "8192:16384:65536:16384")
+ALL_CONFIGS=("BHT_CONFIGS" "GLOBAL_CONFIGS" "LOCAL_CONFIGS" "TOURNAMENT_CONFIGS")
 
 export BOARD=$1
 export XILINX_PART=$2
@@ -143,7 +142,10 @@ generate_bitstream_tournament() {
                                MBP_ENTRIES=${mbp_entries} \
                                GBP_ENTRIES=${gbp_entries} \
                                LBP_ENTRIES=${lbp_entries} \
-                               LHR_ENTRIES=${lhr_entries}
+                               LHR_ENTRIES=${lhr_entries} \
+                               CHOICE_CTR_BITS=2 \
+                               GLOBAL_CTR_BITS=2 \
+                               LOCAL_CTR_BITS=2
 
     if [ $? -ne 0 ]; then
         echo "Error: MAKE command failed for BRANCH_PRED_IMPL=${impl_name}"
@@ -192,12 +194,12 @@ for (( i = 0; i < ${#BRANCH_PRED_IMPL_NAMES[@]}; i++ )); do
     done
 done
 
-cat "$temp" | xargs -P1 -I{} bash -c '
+cat "$temp" | xargs -P5 -I{} bash -c '
   tuple="{}"
   impl=$(echo ${tuple} | tr -s " " | cut -d " " -f1,1)
   impl_name=$(echo ${tuple} | tr -s " " | cut -d " " -f2,2)
   config=$(echo ${tuple} | tr -s " " | cut -d " " -f3,3)
-  generate_bitstream_${impl_name} ${impl} ${impl_name} ${config}
+  taskset -c ${impl} generate_bitstream_${impl_name} ${impl} ${impl_name} ${config}
 '
 
 

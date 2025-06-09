@@ -18,6 +18,9 @@ set MBP_ENTRIES      [lindex $argv 0]
 set GBP_ENTRIES      [lindex $argv 1]
 set LBP_ENTRIES      [lindex $argv 2]
 set LHR_ENTRIES      [lindex $argv 3]
+set CHOICE_CTR_BITS  [lindex $argv 4]
+set GLOBAL_CTR_BITS  [lindex $argv 5]
+set LOCAL_CTR_BITS   [lindex $argv 6]
 
 # hard-coded to Genesys 2 for the moment
 
@@ -89,7 +92,10 @@ synth_design -rtl -name rtl_1 -verilog_define BRANCH_PRED_IMPL=3 \
                               -verilog_define MBP_ENTRIES=$MBP_ENTRIES \
                               -verilog_define GBP_ENTRIES=$GBP_ENTRIES \
                               -verilog_define LBP_ENTRIES=$LBP_ENTRIES \
-                              -verilog_define LHR_ENTRIES=$LHR_ENTRIES
+                              -verilog_define LHR_ENTRIES=$LHR_ENTRIES \
+                              -verilog_define CHOICE_CTR_BITS=$CHOICE_CTR_BITS \
+                              -verilog_define GLOBAL_CTR_BITS=$GLOBAL_CTR_BITS \
+                              -verilog_define LOCAL_CTR_BITS=$LOCAL_CTR_BITS
 
 set_property STEPS.SYNTH_DESIGN.ARGS.RETIMING true [get_runs synth_1]
 
