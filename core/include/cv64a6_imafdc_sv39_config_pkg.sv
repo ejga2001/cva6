@@ -8,7 +8,7 @@
 // Original Author: Jean-Roch COULON - Thales
 
 `ifndef BRANCH_PRED_IMPL
-  `define BRANCH_PRED_IMPL 3
+  `define BRANCH_PRED_IMPL 0
 `endif
 
 `ifndef BHT_ENTRIES

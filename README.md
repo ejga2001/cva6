@@ -100,6 +100,24 @@ python3 cva6.py --target cv64a6_imafdc_sv39 --iss=$DV_SIMULATORS --iss_yaml=cva6
 -I../tests/custom/env -I../tests/custom/common"
 ```
 
+And another one:
+
+```sh
+# Make sure to source this script from the root directory 
+# to correctly set the environment variables related to the tools
+source verif/sim/setup-env.sh
+
+# Set the NUM_JOBS variable to increase the number of parallel make jobs
+export NUM_JOBS=6
+
+export DV_SIMULATORS=veri-testharness
+
+cd ./verif/sim
+
+python3 cva6.py --target cv64a6_imafdc_sv39 --iss=$DV_SIMULATORS --iss_yaml=cva6.yaml \
+--elf_tests /home/enrique/CLionProjects/cva6/verif/sim/out_2025-06-09/directed_tests/hello_world.o
+```
+
 You can run either assembly programs (check `verif/test/custom/hello_world/custom_test_template.S`) or C programs. Run `python3 cva6.py --help` to have more informations on the available parameters.
 
 ## Simulating with VCS and Verdi

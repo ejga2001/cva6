@@ -56,6 +56,8 @@ module gbp #(
   // number of bits we should use for prediction
   localparam PREDICTION_BITS = $clog2(NR_ROWS) + OFFSET + ROW_ADDR_BITS;
 
+  localparam CTR_MAX_VAL = (1 << CVA6Cfg.GlobalCtrBits) - 1;
+
   // Branch Prediction Register bits
   localparam GHR_BITS = $clog2(NR_ROWS);
 
@@ -202,24 +204,23 @@ module gbp #(
           if (!CVA6Cfg.FpgaAlteraEn) begin
             bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
           end
-          bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
-          case (bht[i].saturation_counter)
-            2'b00: begin
-              bht_updated[i].saturation_counter = (check_bht_update_taken == 0) ? 2'b00 :
-                  bht[i].saturation_counter + 1;
-            end
-            2'b01, 2'b10: begin
-              bht_updated[i].saturation_counter = (check_bht_update_taken == 0) ? bht[i].saturation_counter - 1:
-                  bht[i].saturation_counter + 1;
-            end
-            2'b11: begin
-              bht_updated[i].saturation_counter = (check_bht_update_taken == 1) ? 2'b11 :
-                  bht[i].saturation_counter - 1;
-            end
-            default: begin
-              bht_updated[i].saturation_counter = 2'b00;
-            end
-          endcase
+          bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:CVA6Cfg.GlobalCtrBits];
+          if (bht[i].saturation_counter == CTR_MAX_VAL) begin
+            // we can safely decrease it
+            if (!check_bht_update_taken)
+                bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
+            else bht_updated[i].saturation_counter = CTR_MAX_VAL;
+            // then check if it saturated in the negative regime e.g.: branch not taken
+          end else if (bht[i].saturation_counter == (CVA6Cfg.GlobalCtrBits)'(0)) begin
+            // we can safely increase it
+            if (check_bht_update_taken)
+                bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
+            else bht_updated[i].saturation_counter = (CVA6Cfg.GlobalCtrBits)'(0);
+          end else begin  // otherwise we are not in any boundaries and can decrease or increase it
+            if (check_bht_update_taken)
+                bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
+            else bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
+          end
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)
           bht_ram_wdata[i*BRAM_WORD_BITS+:BRAM_WORD_BITS] = CVA6Cfg.FpgaAlteraEn ? {bht_updated_valid[i][0], bht_updated[i].saturation_counter} :
               {bht_updated[i].valid, bht_updated[i].saturation_counter};

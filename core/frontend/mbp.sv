@@ -54,6 +54,7 @@ module mbp #(
   localparam ROW_INDEX_BITS = CVA6Cfg.RVC == 1'b1 ? $clog2(CVA6Cfg.INSTR_PER_FETCH) : 1;
   // number of bits we should use for prediction
   localparam PREDICTION_BITS = $clog2(NR_ROWS) + OFFSET + ROW_ADDR_BITS;
+  localparam CTR_MAX_VAL = (1 << CVA6Cfg.ChoiceCtrBits) - 1;
 
   typedef struct packed {
     logic [CVA6Cfg.ChoiceCtrBits-1:0] saturation_counter;
@@ -191,16 +192,23 @@ module mbp #(
           if (!CVA6Cfg.FpgaAlteraEn) begin
             bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
           end
-          bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
+          bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:CVA6Cfg.ChoiceCtrBits];
           case (bht[i].saturation_counter)
-            2'b00: begin
+            (CVA6Cfg.ChoiceCtrBits)'(0): begin
               if ((!update_lbp_pred_i[i].valid || (check_bht_update_taken != update_lbp_pred_i[i].taken))
                   && (update_gbp_pred_i[i].valid && (check_bht_update_taken == update_gbp_pred_i[i].taken)))
                   bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
               else
-                  bht_updated[i].saturation_counter = 2'b00;
+                  bht_updated[i].saturation_counter = (CVA6Cfg.ChoiceCtrBits)'(0);
             end
-            2'b01, 2'b10: begin
+            (CVA6Cfg.ChoiceCtrBits)'(CTR_MAX_VAL): begin
+              if ((!update_gbp_pred_i[i].valid || (check_bht_update_taken != update_gbp_pred_i[i].taken))
+                  && (update_lbp_pred_i[i].valid && (check_bht_update_taken == update_lbp_pred_i[i].taken)))
+                  bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
+              else
+                  bht_updated[i].saturation_counter = CTR_MAX_VAL;
+            end
+            default: begin
               if ((!update_gbp_pred_i[i].valid || (check_bht_update_taken != update_gbp_pred_i[i].taken))
                   && (update_lbp_pred_i[i].valid && (check_bht_update_taken == update_lbp_pred_i[i].taken)))
                   bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
@@ -209,16 +217,6 @@ module mbp #(
                   bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
               else
                   bht_updated[i].saturation_counter = bht[i].saturation_counter;
-            end
-            2'b11: begin
-              if ((!update_gbp_pred_i[i].valid || (check_bht_update_taken != update_gbp_pred_i[i].taken))
-                  && (update_lbp_pred_i[i].valid && (check_bht_update_taken == update_lbp_pred_i[i].taken)))
-                  bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
-              else
-                  bht_updated[i].saturation_counter = 2'b11;
-            end
-            default: begin
-              bht_updated[i].saturation_counter = 2'b00;
             end
           endcase
           //The data written in the RAM will have the valid bit from current input (async RAM) or the one from one clock cycle before (sync RAM)

@@ -42,6 +42,7 @@ generate_bitstream_bht() {
     suffix_name=${impl}_"bht=${bht_entries}_ctrbits=${ctr_bits}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
+    cp -Rf $fpga_tmp/corev_apu/fpga/reports/* corev_apu/fpga/reports
     cp -Rf $fpga_tmp/corev_apu/fpga/ariane.xpr corev_apu/fpga/xilinx_projects/ariane_${suffix_name}.xpr
     cp -Rf $fpga_tmp/corev_apu/fpga/vivado.log corev_apu/fpga/logs/vivado_${suffix_name}.log
     rm -Rf $fpga_tmp
@@ -77,6 +78,7 @@ generate_bitstream_gbp() {
     suffix_name=${impl}_"gbp=${gbp_entries}_ctrbits=${ctr_bits}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
+    cp -Rf $fpga_tmp/corev_apu/fpga/reports/* corev_apu/fpga/reports
     cp -Rf $fpga_tmp/corev_apu/fpga/ariane.xpr corev_apu/fpga/xilinx_projects/ariane_${suffix_name}.xpr
     cp -Rf $fpga_tmp/corev_apu/fpga/vivado.log corev_apu/fpga/logs/vivado_${suffix_name}.log
     rm -Rf $fpga_tmp
@@ -114,6 +116,7 @@ generate_bitstream_lbp() {
     suffix_name=${impl}_"lbp=${lbp_entries}_lhr=${lhr_entries}_ctrbits=${ctr_bits}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
+    cp -Rf $fpga_tmp/corev_apu/fpga/reports/* corev_apu/fpga/reports
     cp -Rf $fpga_tmp/corev_apu/fpga/ariane.xpr corev_apu/fpga/xilinx_projects/ariane_${suffix_name}.xpr
     cp -Rf $fpga_tmp/corev_apu/fpga/vivado.log corev_apu/fpga/logs/vivado_${suffix_name}.log
     rm -Rf $fpga_tmp
@@ -156,6 +159,7 @@ generate_bitstream_tournament() {
     suffix_name=${impl}_"mbp=${mbp_entries}_gbp=${gbp_entries}_lbp=${lbp_entries}_lhr=${lhr_entries}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
+    cp -Rf $fpga_tmp/corev_apu/fpga/reports/* corev_apu/fpga/reports
     cp -Rf $fpga_tmp/corev_apu/fpga/ariane.xpr corev_apu/fpga/xilinx_projects/ariane_${suffix_name}.xpr
     cp -Rf $fpga_tmp/corev_apu/fpga/vivado.log corev_apu/fpga/logs/vivado_${suffix_name}.log
     rm -Rf $fpga_tmp
@@ -185,6 +189,10 @@ if [ ! -d  corev_apu/fpga/logs ]; then
     mkdir corev_apu/fpga/logs
 fi
 
+if [ ! -d  corev_apu/fpga/reports ]; then
+    mkdir corev_apu/fpga/reports
+fi
+
 temp=$(mktemp)
 for (( i = 0; i < ${#BRANCH_PRED_IMPL_NAMES[@]}; i++ )); do
     impl_name=${BRANCH_PRED_IMPL_NAMES[$i]}
@@ -202,4 +210,5 @@ cat "$temp" | xargs -P5 -I{} bash -c '
   taskset -c ${impl} generate_bitstream_${impl_name} ${impl} ${impl_name} ${config}
 '
 
-
+rm -f "$temp"
+echo "DONE"

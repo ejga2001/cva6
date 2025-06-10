@@ -56,6 +56,8 @@ module bht #(
   // number of bits we should use for prediction
   localparam PREDICTION_BITS = $clog2(NR_ROWS) + OFFSET + ROW_ADDR_BITS;
 
+  localparam CTR_MAX_VAL = (1 << CVA6Cfg.BimodalCtrBits) - 1;
+
   typedef struct packed {
     logic                             valid;
     logic [CVA6Cfg.BimodalCtrBits-1:0] saturation_counter;
@@ -172,8 +174,6 @@ module bht #(
       bht_updated = '0;
       bht = '0;
 
-      //$display("CLK_I = %b\nRST_NI = %b\nVPC_I = %h\nBHT_UPDATE_I = %h\nDEBUG_MODE = %b\n-----\n", clk_i, rst_ni, vpc_i, bht_update_i, debug_mode_i);
-
       //Write to RAM
       if (bht_update_i.valid && !debug_mode_i) begin
         for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
@@ -198,19 +198,18 @@ module bht #(
           if (!CVA6Cfg.FpgaAlteraEn) begin
             bht_ram_read_address_1[i*$clog2(NR_ROWS)+:$clog2(NR_ROWS)] = update_pc;
           end
-          bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:2];
-
-          if (bht[i].saturation_counter == 2'b11) begin
+          bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:CVA6Cfg.BimodalCtrBits];
+          if (bht[i].saturation_counter == CTR_MAX_VAL) begin
             // we can safely decrease it
             if (!check_bht_update_taken)
                 bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
-            else bht_updated[i].saturation_counter = 2'b11;
+            else bht_updated[i].saturation_counter = CTR_MAX_VAL;
             // then check if it saturated in the negative regime e.g.: branch not taken
-          end else if (bht[i].saturation_counter == 2'b00) begin
+          end else if (bht[i].saturation_counter == (CVA6Cfg.BimodalCtrBits)'(0)) begin
             // we can safely increase it
             if (check_bht_update_taken)
                 bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
-            else bht_updated[i].saturation_counter = 2'b00;
+            else bht_updated[i].saturation_counter = (CVA6Cfg.BimodalCtrBits)'(0);
           end else begin  // otherwise we are not in any boundaries and can decrease or increase it
             if (check_bht_update_taken)
                 bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
