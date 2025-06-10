@@ -45,7 +45,7 @@ module lbp #(
   // Prediction from bht - FRONTEND
   output bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
   // BHT index to store it for a future update - FRONTEND
-  output logic [CVA6Cfg.BHTIndexBits-1:0] index_o
+  output logic [CVA6Cfg.LocalPredictorIndexBits-1:0] index_o
 );
   // the last bit is always zero, we don't need it for indexing
   localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
