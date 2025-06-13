@@ -33,10 +33,12 @@ module ftq #(
     input  logic [CVA6Cfg.INSTR_PER_FETCH-1:0]      taken_rvi_cf_i,
     input  logic [CVA6Cfg.INSTR_PER_FETCH-1:0]      taken_rvc_cf_i,
     output bp_metadata_t                            bp_metadata_o,
+    output logic                                    is_unaligned_o,
     output logic                                    ftq_overflow_o
 );
     localparam type ftq_entry_t = struct packed {
         bp_metadata_t bp_metadata;
+        logic         is_unaligned;
         logic [CVA6Cfg.LOG2_INSTR_PER_FETCH:0] bp_count;
     };
 
@@ -59,12 +61,11 @@ module ftq #(
     assign valid_taken_cf = valid_i & (taken_rvc_cf_i | taken_rvi_cf_i);
 
     assign push_ftq = (|is_valid_branch);
-    assign pop_ftq = bht_update_i.valid &
-                    ((bp_count_q == CVA6Cfg.INSTR_PER_FETCH-1) || ftq_entry_out.bp_count == CVA6Cfg.INSTR_PER_FETCH-1) &
-                    ~empty_ftq;
+    assign pop_ftq = bht_update_i.valid & ((bp_count_q == 1) || ftq_entry_out.bp_count == 1);
 
-    assign ftq_entry_in = {bp_metadata_i, pop_count};
+    assign ftq_entry_in = {bp_metadata_i, serving_unaligned_i, pop_count};
     assign bp_metadata_o = ftq_entry_out.bp_metadata;
+    assign is_unaligned_o = ftq_entry_out.is_unaligned;
     assign ftq_overflow_o = full_ftq & push_ftq;
 
     // if replay starts from an unaglined address, replay position should be 0.
@@ -105,7 +106,7 @@ module ftq #(
         .empty_o    (empty_ftq),
         .usage_o    (),
         .data_i     (ftq_entry_in),
-        .push_i     (push_ftq & ~full_ftq),
+        .push_i     (push_ftq & ~full_ftq & ~instr_queue_overflow_i),
         .data_o     (ftq_entry_out),
         .pop_i      (pop_ftq)
     );

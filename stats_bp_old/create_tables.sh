@@ -5,22 +5,43 @@ get_impl () {
 
   impl_num=$(echo $name_dir | cut -d "_" -f3,3)
   impl=""
+  kbits=""
   params=$(echo $name_dir | cut -d "_" -f4-)
   case ${impl_num} in
   0)
-    impl="bht"
+    impl="Bimodal"
     ;;
   1)
-    impl="gbp"
+    impl="Gshare"
     ;;
   2)
-    impl="lbp"
+    impl="Local"
     ;;
   3)
-    impl="tournament"
+    impl="Tournament"
+    ;;
+  4)
+    impl="TAGE"
     ;;
   esac
-  echo "$impl ($params)"
+  case ${params} in
+  "bht=16384"|"gbp=16384"|"lbp=4096_lhr=2048_ctrbits=2"|"mbp=2048_gbp=4096_lbp=4096_lhr=1024"|"bimodal=8192_power=1_ubitperiod=2048")
+    kbits="32"
+    ;;
+  "bht=32768"|"gbp=32768"|"lbp=4096_lhr=4096_ctrbits=4"|"mbp=8192_gbp=8192_lbp=4096_lhr=2048"|"bimodal=16384_power=2_ubitperiod=2048")
+    kbits="64"
+    ;;
+  "bht=65536"|"gbp=65536"|"lbp=8192_lhr=8192_ctrbits=3"|"mbp=4096_gbp=16384_lbp=16384_lhr=4096"|"bimodal=32768_power=3_ubitperiod=2048")
+    kbits="128"
+    ;;
+  "bht=131072"|"gbp=131072"|"lbp=16384_lhr=16384_ctrbits=2"|"mbp=16384_gbp=16384_lbp=65536_lhr=4096"|"bimodal=65536_power=4_ubitperiod=2048")
+    kbits="256"
+    ;;
+  "bht=262144"|"gbp=262144"|"lbp=65536_lhr=16384_ctrbits=3"|"mbp=32768_gbp=32768_lbp=65536_lhr=16384"|"bimodal=131072_power=5_ubitperiod=2048")
+    kbits="512"
+    ;;
+  esac
+  echo "$impl ($kbits Kbits)"
 }
 
 STATS_DIR="/home/enrique/CLionProjects/cva6/stats_bp"
@@ -32,40 +53,18 @@ for stat_dir in ${STATS_DIRS} ; do
   echo "Implementation: $(get_impl "$(basename $stat_dir)")"
   for stat in ${STATS_BENCHMARKS} ; do
       echo "Benchmark: $(basename $stat)" | cut -d "_" -f2,2
-      cycles=""
-      instructions=""
-      branches=""
-      branch_misses=""
-      printed_bm=0
+      bm_ratio=""
       ipc=""
-      printed_ipc=0
       while IF= read -r line; do
-        if [[ $line =~ "branches" ]]; then
-          if [[ $line =~ "branch-misses" ]]; then
-            branch_misses=$(echo $line | tr -s " " | cut -d " " -f1,1)
-            echo "Branch misses: $branch_misses"
-          else
-            branches=$(echo $line | tr -s " " | cut -d " " -f1,1)
-            echo "Branches: $branches"
-          fi
-        elif [[ $line =~ "cycles" ]]; then
-          cycles=$(echo $line | tr -s " " | cut -d " " -f1,1)
-        elif [[ $line =~ "instruction" ]]; then
-          instructions=$(echo $line | tr -s " " | cut -d " " -f1,1)
-        fi
-        if [ -n "$cycles" ] && [ -n "$instructions" ] && [ $printed_ipc == 0  ]; then
-            ipc=$(echo "$instructions / $cycles" | bc -l | sed 's/^\./0./')
-            ipc_rounded=$(LC_NUMERIC=C printf "%.2f" "$ipc")
-            echo "IPC: $ipc_rounded"
-            printed_ipc=1
-        fi
-        if [ -n "$branches" ] && [ -n "$branch_misses" ] && [ $printed_bm == 0 ]; then
-          bm_ratio=$(echo "$branch_misses / $branches * 100" | bc -l | sed 's/^\./0./')
-          bm_ratio_rounded=$(LC_NUMERIC=C printf "%.2f" "$bm_ratio")
-          echo "Ratio of branch misses: $bm_ratio_rounded %"
-          printed_bm=1
+        if [[ $line =~ "of all branches" ]]; then
+          bm_ratio=$(echo $line | tr -s " " | cut -d " " -f4,4 | tr "%" " ")
+          echo "Ratio of branch misses: ${bm_ratio}%"
+        elif [[ $line =~ "insn per cycle" ]]; then
+          ipc=$(echo $line | tr -s " " | cut -d " " -f4,4)
+          echo "IPC: ${ipc}"
         fi
       done < "$stat"
+      echo
   done
   echo "----------------------------"
 done

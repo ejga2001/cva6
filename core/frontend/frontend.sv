@@ -116,6 +116,7 @@ module frontend
 
     logic [                   CVA6Cfg.VLEN-1:0] instr_queue_replay_addr;
     logic                                       instr_queue_overflow, ftq_overflow;
+    logic                                       update_is_unaligned;
     bp_metadata_t                               bp_metadata_bp_ftq, bp_metadata_ftq_bp;
     // replay if any of the queue overflows
     assign replay = instr_queue_overflow | ftq_overflow;
@@ -186,10 +187,10 @@ module frontend
     // in case we are serving an unaligned instruction in instr[0] we need to take
     // the prediction we saved from the previous fetch
     if (CVA6Cfg.RVC) begin : gen_btb_prediction_shifted
-        assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[addr[0][$clog2(CVA6Cfg.INSTR_PER_FETCH):1]];
+        //assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[addr[0][$clog2(CVA6Cfg.INSTR_PER_FETCH):1]];
         // the prediction targe we saved, but the for the prediction result we fetch the
         // first prediction since we store the unaligned update in an alinged address.
-        //assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_prediction[0] : bht_prediction[addr[0][$clog2(INSTR_PER_FETCH):1]];
+        assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_prediction[0] : bht_prediction[addr[0][CVA6Cfg.LOG2_INSTR_PER_FETCH:1]];
         assign btb_prediction_shifted[0] = (serving_unaligned) ? btb_q : btb_prediction[addr[0][$clog2(CVA6Cfg.INSTR_PER_FETCH):1]];
 
         // for all other predictions we can use the generated address to index
@@ -531,6 +532,7 @@ module frontend
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
                     .update_index_i(bp_metadata_ftq_bp.index),
+                    .update_is_unaligned_i(update_is_unaligned),
                     .bht_prediction_o(bht_prediction),
                     .index_o(bp_metadata_bp_ftq.index)
                 );
@@ -613,6 +615,7 @@ module frontend
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
                     .update_index_i(bp_metadata_ftq_bp.index),
+                    .update_is_unaligned_i(update_is_unaligned),
                     .bht_prediction_o(bht_prediction),
                     .index_o(bp_metadata_bp_ftq.index)
                 );
@@ -637,6 +640,7 @@ module frontend
             .taken_rvc_cf_i(taken_rvc_cf),
             .taken_rvi_cf_i(taken_rvi_cf),
             .bp_metadata_o(bp_metadata_ftq_bp),
+            .is_unaligned_o(update_is_unaligned),
             .ftq_overflow_o(ftq_overflow)
         );
     end

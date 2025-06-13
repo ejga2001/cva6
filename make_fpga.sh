@@ -1,12 +1,13 @@
 #!/bin/bash
 
-BRANCH_PRED_IMPL_NAMES=("bht" "gbp" "lbp" "tournament")
-BHT_CONFIGS=("8192:3" "16384:3" "32768:3" "65536:3" "131072:3")
-GLOBAL_CONFIGS=("8192:3" "16384:3" "32768:3" "65536:3" "131072:3")
-LOCAL_CONFIGS=("4096:2048:1" "4096:4096:3" "8192:8192:2" "16384:16384:1" "65536:16384:2")
-TOURNAMENT_CONFIGS=("1024:2048:4096:1024" "1024:4096:8192:2048" \
-                    "2048:16384:16384:2048" "8192:8192:32768:8192" "8192:16384:65536:16384")
-ALL_CONFIGS=("BHT_CONFIGS" "GLOBAL_CONFIGS" "LOCAL_CONFIGS" "TOURNAMENT_CONFIGS")
+declare -A ALL_CONFIGS
+
+BRANCH_PRED_IMPL_NAMES=("bht")
+ALL_CONFIGS["bht"]="8192:3 16384:3 32768:3 65536:3 131072:3"
+ALL_CONFIGS["gbp"]="8192:3 16384:3 32768:3 65536:3 131072:3"
+ALL_CONFIGS["lbp"]="4096:2048:1 4096:4096:3 8192:8192:2 16384:16384:1 65536:16384:2"
+ALL_CONFIGS["tournament"]="1024:2048:4096:1024 1024:4096:8192:2048 \
+                           2048:16384:16384:2048 8192:8192:32768:8192 8192:16384:65536:16384"
 
 export BOARD=$1
 export XILINX_PART=$2
@@ -14,10 +15,9 @@ export XILINX_BOARD=$3
 export CLK_PERIOD_NS=$4
 
 generate_bitstream_bht() {
-    impl=$1
-    impl_name=$2
-    bht_entries=$(echo $3 | cut -d ":" -f1,1)
-    ctr_bits=$(echo $3 | cut -d ":" -f2,2)
+    impl_name=$1
+    bht_entries=$(echo "$2" | cut -d ":" -f1,1)
+    ctr_bits=$(echo "$2" | cut -d ":" -f2,2)
     fpga_tmp=$(mktemp -d)
 
     cp -Rf common $fpga_tmp
@@ -29,7 +29,7 @@ generate_bitstream_bht() {
                                XILINX_PART=$XILINX_PART \
                                XILINX_BOARD=$XILINX_BOARD \
                                CLK_PERIOD_NS=$CLK_PERIOD_NS \
-                               BRANCH_PRED_IMPL=${impl} \
+                               BRANCH_PRED_IMPL=0 \
                                BHT_ENTRIES=${bht_entries} \
                                BHT_CTR_BITS=${ctr_bits}
 
@@ -39,7 +39,7 @@ generate_bitstream_bht() {
         exit 1
     fi
 
-    suffix_name=${impl}_"bht=${bht_entries}_ctrbits=${ctr_bits}"
+    suffix_name="0_bht=${bht_entries}_ctrbits=${ctr_bits}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
     cp -Rf $fpga_tmp/corev_apu/fpga/reports/* corev_apu/fpga/reports
@@ -49,10 +49,9 @@ generate_bitstream_bht() {
 }
 
 generate_bitstream_gbp() {
-    impl=$1
-    impl_name=$2
-    gbp_entries=$(echo $3 | cut -d ":" -f1,1)
-    ctr_bits=$(echo $3 | cut -d ":" -f2,2)
+    impl_name=$1
+    gbp_entries=$(echo "$2" | cut -d ":" -f1,1)
+    ctr_bits=$(echo "$2" | cut -d ":" -f2,2)
 
     fpga_tmp=$(mktemp -d)
 
@@ -65,7 +64,7 @@ generate_bitstream_gbp() {
                                XILINX_PART=$XILINX_PART \
                                XILINX_BOARD=$XILINX_BOARD \
                                CLK_PERIOD_NS=$CLK_PERIOD_NS \
-                               BRANCH_PRED_IMPL=${impl} \
+                               BRANCH_PRED_IMPL=1 \
                                GBP_ENTRIES=${gbp_entries} \
                                GLOBAL_CTR_BITS=${ctr_bits}
 
@@ -75,7 +74,7 @@ generate_bitstream_gbp() {
         exit 1
     fi
 
-    suffix_name=${impl}_"gbp=${gbp_entries}_ctrbits=${ctr_bits}"
+    suffix_name="1_gbp=${gbp_entries}_ctrbits=${ctr_bits}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
     cp -Rf $fpga_tmp/corev_apu/fpga/reports/* corev_apu/fpga/reports
@@ -85,11 +84,10 @@ generate_bitstream_gbp() {
 }
 
 generate_bitstream_lbp() {
-    impl=$1
-    impl_name=$2
-    lbp_entries=$(echo "$3" | cut -d ":" -f1,1)
-    lhr_entries=$(echo "$3" | cut -d ":" -f2,2)
-    ctr_bits=$(echo "$3"| cut -d ":" -f3,3)
+    impl_name=$1
+    lbp_entries=$(echo "$2" | cut -d ":" -f1,1)
+    lhr_entries=$(echo "$2" | cut -d ":" -f2,2)
+    ctr_bits=$(echo "$2"| cut -d ":" -f3,3)
 
     fpga_tmp=$(mktemp -d)
 
@@ -102,7 +100,7 @@ generate_bitstream_lbp() {
                                XILINX_PART=$XILINX_PART \
                                XILINX_BOARD=$XILINX_BOARD \
                                CLK_PERIOD_NS=$CLK_PERIOD_NS \
-                               BRANCH_PRED_IMPL=${impl} \
+                               BRANCH_PRED_IMPL=2 \
                                LBP_ENTRIES=${lbp_entries} \
                                LHR_ENTRIES=${lhr_entries} \
                                LOCAL_CTR_BITS=${ctr_bits}
@@ -113,7 +111,7 @@ generate_bitstream_lbp() {
         exit 1
     fi
 
-    suffix_name=${impl}_"lbp=${lbp_entries}_lhr=${lhr_entries}_ctrbits=${ctr_bits}"
+    suffix_name="2_lbp=${lbp_entries}_lhr=${lhr_entries}_ctrbits=${ctr_bits}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
     cp -Rf $fpga_tmp/corev_apu/fpga/reports/* corev_apu/fpga/reports
@@ -123,12 +121,11 @@ generate_bitstream_lbp() {
 }
 
 generate_bitstream_tournament() {
-    impl=$1
-    impl_name=$2
-    mbp_entries=$(echo "$3" | tr "-" " " | cut -d " " -f1,1)
-    gbp_entries=$(echo "$3" | tr "-" " " | cut -d " " -f2,2)
-    lbp_entries=$(echo "$3" | tr "-" " " | cut -d " " -f3,3)
-    lhr_entries=$(echo "$3" | tr "-" " " | cut -d " " -f4,4)
+    impl_name=$1
+    mbp_entries=$(echo "$2" | tr "-" " " | cut -d " " -f1,1)
+    gbp_entries=$(echo "$2" | tr "-" " " | cut -d " " -f2,2)
+    lbp_entries=$(echo "$2" | tr "-" " " | cut -d " " -f3,3)
+    lhr_entries=$(echo "$2" | tr "-" " " | cut -d " " -f4,4)
 
     fpga_tmp=$(mktemp -d)
 
@@ -141,7 +138,7 @@ generate_bitstream_tournament() {
                                XILINX_PART=$XILINX_PART \
                                XILINX_BOARD=$XILINX_BOARD \
                                CLK_PERIOD_NS=$CLK_PERIOD_NS \
-                               BRANCH_PRED_IMPL=${impl} \
+                               BRANCH_PRED_IMPL=3 \
                                MBP_ENTRIES=${mbp_entries} \
                                GBP_ENTRIES=${gbp_entries} \
                                LBP_ENTRIES=${lbp_entries} \
@@ -156,7 +153,7 @@ generate_bitstream_tournament() {
         exit 1
     fi
 
-    suffix_name=${impl}_"mbp=${mbp_entries}_gbp=${gbp_entries}_lbp=${lbp_entries}_lhr=${lhr_entries}"
+    suffix_name="3_mbp=${mbp_entries}_gbp=${gbp_entries}_lbp=${lbp_entries}_lhr=${lhr_entries}"
 
     cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
     cp -Rf $fpga_tmp/corev_apu/fpga/reports/* corev_apu/fpga/reports
@@ -196,18 +193,17 @@ fi
 temp=$(mktemp)
 for (( i = 0; i < ${#BRANCH_PRED_IMPL_NAMES[@]}; i++ )); do
     impl_name=${BRANCH_PRED_IMPL_NAMES[$i]}
-    configs=$(eval echo \${${ALL_CONFIGS[$i]}[@]})
+    configs=${ALL_CONFIGS[${impl_name}]}
     for config in ${configs}; do
-      echo "${i} ${impl_name} ${config}" >> ${temp}
+      echo "${impl_name} ${config}" >> ${temp}
     done
 done
 
-cat "$temp" | xargs -P5 -I{} bash -c '
+cat "$temp" | xargs -P1 -I{} bash -c '
   tuple="{}"
-  impl=$(echo ${tuple} | tr -s " " | cut -d " " -f1,1)
-  impl_name=$(echo ${tuple} | tr -s " " | cut -d " " -f2,2)
-  config=$(echo ${tuple} | tr -s " " | cut -d " " -f3,3)
-  taskset -c ${impl} generate_bitstream_${impl_name} ${impl} ${impl_name} ${config}
+  impl_name=$(echo ${tuple} | tr -s " " | cut -d " " -f1,1)
+  config=$(echo ${tuple} | tr -s " " | cut -d " " -f2,2)
+  generate_bitstream_${impl_name} ${impl_name} ${config}
 '
 
 rm -f "$temp"

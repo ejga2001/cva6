@@ -16,6 +16,8 @@
 
 set BHT_ENTRIES      [lindex $argv 0]
 set BHT_CTR_BITS     [lindex $argv 1]
+set POWER            [lindex $argv 2]
+set U_BIT_PERIOD     [lindex $argv 3]
 
 # hard-coded to Genesys 2 for the moment
 
@@ -83,9 +85,11 @@ update_compile_order -fileset sources_1
 
 add_files -fileset constrs_1 -norecurse constraints/$project.xdc
 
-synth_design -rtl -name rtl_1 -verilog_define BRANCH_PRED_IMPL=0 \
+synth_design -rtl -name rtl_1 -verilog_define BRANCH_PRED_IMPL=4 \
                               -verilog_define BHT_ENTRIES=$BHT_ENTRIES \
-                              -verilog_define BHT_CTR_BITS=$BHT_CTR_BITS
+                              -verilog_define BHT_CTR_BITS=$BHT_CTR_BITS \
+                              -verilog_define POWER=$POWER \
+                              -verilog_define U_BIT_PERIOD=$U_BIT_PERIOD
 
 set_property STEPS.SYNTH_DESIGN.ARGS.RETIMING true [get_runs synth_1]
 

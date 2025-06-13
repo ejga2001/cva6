@@ -41,6 +41,8 @@ module bht #(
   input bht_update_t bht_update_i,
   // Update bht with saved index - FTQ
   input logic [CVA6Cfg.BHTIndexBits-1:0] update_index_i,
+  // Update row index if the instruction at the update pc is unaligned - FTQ
+  input logic update_is_unaligned_i,
   // Prediction from bht - FRONTEND
   output bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
   // BHT index to store it for a future update - FRONTEND
@@ -59,7 +61,7 @@ module bht #(
   localparam CTR_MAX_VAL = (1 << CVA6Cfg.BimodalCtrBits) - 1;
 
   typedef struct packed {
-    logic                             valid;
+    logic                              valid;
     logic [CVA6Cfg.BimodalCtrBits-1:0] saturation_counter;
   } bht_t;
 
@@ -75,7 +77,7 @@ module bht #(
   assign index_o   = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
   assign update_pc = update_index_i;
   if (CVA6Cfg.RVC) begin : gen_update_row_index
-    assign update_row_index = bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
+    assign update_row_index = (update_is_unaligned_i) ? 0 : bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
   end else begin
     assign update_row_index = '0;
   end

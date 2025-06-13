@@ -517,7 +517,7 @@ module instr_queue
       .empty_o   (),
       .usage_o   (),
       .data_i    (predict_address_i),
-      .push_i    (push_address & ~full_address),
+      .push_i    (push_address),
       .data_o    (address_out),
       .pop_i     (pop_address)
   );
