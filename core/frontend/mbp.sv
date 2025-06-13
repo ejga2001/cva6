@@ -42,6 +42,8 @@ module mbp #(
   // Previous predictions from the other BPs
   input bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] update_gbp_pred_i,
   input bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] update_lbp_pred_i,
+  // Update row index if the instruction at the update pc is unaligned - FTQ
+  input logic update_is_unaligned_i,
   // Prediction from bht - FRONTEND
   output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] select_prediction_o
 );
@@ -71,7 +73,7 @@ module mbp #(
   assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
   assign update_pc = bht_update_i.pc[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
   if (CVA6Cfg.RVC) begin : gen_update_row_index
-    assign update_row_index = bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
+    assign update_row_index = (update_is_unaligned_i) ? 0 : bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
   end else begin
     assign update_row_index = '0;
   end

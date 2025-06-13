@@ -551,6 +551,7 @@ module frontend
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
                     .update_index_i(bp_metadata_ftq_bp.index),
+                    .update_is_unaligned_i(update_is_unaligned),
                     .bht_prediction_o(bht_prediction),
                     .index_o(bp_metadata_bp_ftq.index)
                 );
@@ -570,6 +571,7 @@ module frontend
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
                     .update_index_i(bp_metadata_ftq_bp.index),
+                    .update_is_unaligned_i(update_is_unaligned),
                     .bht_prediction_o(bht_prediction),
                     .index_o(bp_metadata_bp_ftq.index)
                 );
@@ -594,6 +596,7 @@ module frontend
                     .update_gbp_pred_i(bp_metadata_ftq_bp.gbp_pred),
                     .update_lindex_i(bp_metadata_ftq_bp.lindex),
                     .update_lbp_pred_i(bp_metadata_ftq_bp.lbp_pred),
+                    .update_is_unaligned_i(update_is_unaligned),
                     .bht_prediction_o(bht_prediction),
                     .gindex_o(bp_metadata_bp_ftq.gindex),
                     .gbp_pred_o(bp_metadata_bp_ftq.gbp_pred),

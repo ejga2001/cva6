@@ -30,6 +30,8 @@ module tournament #(
     // Update lbp with saved metadata - FTQ
     input logic [CVA6Cfg.LocalPredictorIndexBits-1:0] update_lindex_i,
     input bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] update_lbp_pred_i,
+    // Update row index if the instruction at the update pc is unaligned - FTQ
+    input logic update_is_unaligned_i,
     // Prediction from bht - FRONTEND
     output bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
     // GBP metadata to store it for a future update - FTQ
@@ -57,6 +59,7 @@ module tournament #(
         .vpc_i           (vpc_i),
         .bht_update_i    (bht_update_i),
         .update_index_i(update_gindex_i),
+        .update_is_unaligned_i(update_is_unaligned_i),
         .bht_prediction_o(gbp_prediction),
         .index_o(gindex_o)
     );
@@ -74,6 +77,7 @@ module tournament #(
         .vpc_i           (vpc_i),
         .bht_update_i    (bht_update_i),
         .update_index_i(update_lindex_i),
+        .update_is_unaligned_i(update_is_unaligned_i),
         .bht_prediction_o(lbp_prediction),
         .index_o(lindex_o)
     );
@@ -91,6 +95,7 @@ module tournament #(
         .bht_update_i    (bht_update_i),
         .update_gbp_pred_i(update_gbp_pred_i),
         .update_lbp_pred_i(update_lbp_pred_i),
+        .update_is_unaligned_i(update_is_unaligned_i),
         .select_prediction_o(select_prediction)
     );
 
