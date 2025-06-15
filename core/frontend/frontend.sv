@@ -23,8 +23,7 @@ module frontend
         parameter type fetch_entry_t = logic,
         parameter type icache_dreq_t = logic,
         parameter type icache_drsp_t = logic,
-        parameter type bp_metadata_t = logic,
-        parameter type bht_prediction_t = logic
+        parameter type bp_metadata_t = logic
     ) (
     // Subsystem Clock - SUBSYSTEM
     input logic clk_i,
@@ -68,10 +67,17 @@ module frontend
     input logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_ready_i
 );
 
+    localparam type bht_prediction_t = struct packed {
+        logic                    valid;
+        logic                    taken;
+        bp_metadata_t            metadata;
+    };
+
     localparam type bht_update_t = struct packed {
         logic                    valid;
         logic [CVA6Cfg.VLEN-1:0] pc;     // update at PC
         logic                    taken;
+        bp_metadata_t            metadata;
     };
 
     localparam type btb_prediction_t = struct packed {
@@ -114,14 +120,6 @@ module frontend
     logic                                       replay;
     logic [                   CVA6Cfg.VLEN-1:0] replay_addr;
 
-    logic [                   CVA6Cfg.VLEN-1:0] instr_queue_replay_addr;
-    logic                                       instr_queue_overflow, ftq_overflow;
-    logic                                       update_is_unaligned;
-    bp_metadata_t                               bp_metadata_bp_ftq, bp_metadata_ftq_bp;
-    // replay if any of the queue overflows
-    assign replay = instr_queue_overflow | ftq_overflow;
-    assign replay_addr = ftq_overflow ? addr[0] : instr_queue_replay_addr;
-
     // shift amount
     logic [$clog2(CVA6Cfg.INSTR_PER_FETCH)-1:0] shamt;
     // address will always be 16 bit aligned, make this explicit here
@@ -145,6 +143,7 @@ module frontend
     logic            [CVA6Cfg.INSTR_PER_FETCH-1:0][CVA6Cfg.VLEN-1:0] addr;
     logic            [CVA6Cfg.INSTR_PER_FETCH-1:0]                   instruction_valid;
     // BHT, BTB and RAS prediction
+    bp_metadata_t    [CVA6Cfg.INSTR_PER_FETCH-1:0]                   bp_metadata;
     bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0]                   bht_prediction;
     btb_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0]                   btb_prediction;
     bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0]                   bht_prediction_shifted;
@@ -187,10 +186,7 @@ module frontend
     // in case we are serving an unaligned instruction in instr[0] we need to take
     // the prediction we saved from the previous fetch
     if (CVA6Cfg.RVC) begin : gen_btb_prediction_shifted
-        //assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[addr[0][$clog2(CVA6Cfg.INSTR_PER_FETCH):1]];
-        // the prediction targe we saved, but the for the prediction result we fetch the
-        // first prediction since we store the unaligned update in an alinged address.
-        assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_prediction[0] : bht_prediction[addr[0][CVA6Cfg.LOG2_INSTR_PER_FETCH:1]];
+        assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[addr[0][$clog2(CVA6Cfg.INSTR_PER_FETCH):1]];
         assign btb_prediction_shifted[0] = (serving_unaligned) ? btb_q : btb_prediction[addr[0][$clog2(CVA6Cfg.INSTR_PER_FETCH):1]];
 
         // for all other predictions we can use the generated address to index
@@ -232,6 +228,7 @@ module frontend
         taken_rvi_cf = '0;
         taken_rvc_cf = '0;
         predict_address = '0;
+        bp_metadata = '0;
 
         for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) cf_type[i] = ariane_pkg::NoCF;
 
@@ -287,6 +284,7 @@ module frontend
                     if (taken_rvi_cf[i] || taken_rvc_cf[i]) begin
                         cf_type[i] = ariane_pkg::Branch;
                     end
+                    bp_metadata[i] = bht_prediction_shifted[i].metadata;
                 end
                 default: ;
                 // default: $error("Decoded more than one control flow");
@@ -338,6 +336,7 @@ module frontend
     assign bht_update.valid = resolved_branch_i.valid & (resolved_branch_i.cf_type == ariane_pkg::Branch);
     assign bht_update.pc = resolved_branch_i.pc;
     assign bht_update.taken = resolved_branch_i.is_taken;
+    assign bht_update.metadata = resolved_branch_i.metadata;
     // only update mispredicted branches e.g. no returns from the RAS
     assign btb_update.valid = resolved_branch_i.valid
                             & resolved_branch_i.is_mispredict
@@ -523,6 +522,7 @@ module frontend
                     .CVA6Cfg   (CVA6Cfg),
                     .bht_update_t(bht_update_t),
                     .bht_prediction_t(bht_prediction_t),
+                    .bp_metadata_t(bp_metadata_t),
                     .NR_ENTRIES(CVA6Cfg.BHTEntries)
                 ) i_bht (
                     .clk_i,
@@ -531,10 +531,7 @@ module frontend
                     .debug_mode_i,
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
-                    .update_index_i(bp_metadata_ftq_bp.index),
-                    .update_is_unaligned_i(update_is_unaligned),
-                    .bht_prediction_o(bht_prediction),
-                    .index_o(bp_metadata_bp_ftq.index)
+                    .bht_prediction_o(bht_prediction)
                 );
             end
             config_pkg::GlobalBP: begin
@@ -542,6 +539,7 @@ module frontend
                     .CVA6Cfg   (CVA6Cfg),
                     .bht_update_t(bht_update_t),
                     .bht_prediction_t(bht_prediction_t),
+                    .bp_metadata_t(bp_metadata_t),
                     .NR_ENTRIES(CVA6Cfg.GlobalPredictorSize)
                 ) i_gbp (
                     .clk_i,
@@ -550,10 +548,7 @@ module frontend
                     .debug_mode_i,
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
-                    .update_index_i(bp_metadata_ftq_bp.index),
-                    .update_is_unaligned_i(update_is_unaligned),
-                    .bht_prediction_o(bht_prediction),
-                    .index_o(bp_metadata_bp_ftq.index)
+                    .bht_prediction_o(bht_prediction)
                 );
             end
             config_pkg::LocalBP: begin
@@ -561,6 +556,7 @@ module frontend
                     .CVA6Cfg   (CVA6Cfg),
                     .bht_update_t(bht_update_t),
                     .bht_prediction_t(bht_prediction_t),
+                    .bp_metadata_t(bp_metadata_t),
                     .LBP_ENTRIES(CVA6Cfg.LocalPredictorSize),
                     .LHR_ENTRIES(CVA6Cfg.LocalHistoryTableSize)
                 ) i_lbp (
@@ -570,10 +566,7 @@ module frontend
                     .debug_mode_i,
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
-                    .update_index_i(bp_metadata_ftq_bp.index),
-                    .update_is_unaligned_i(update_is_unaligned),
-                    .bht_prediction_o(bht_prediction),
-                    .index_o(bp_metadata_bp_ftq.index)
+                    .bht_prediction_o(bht_prediction)
                 );
             end
             config_pkg::TournamentBP: begin
@@ -581,6 +574,7 @@ module frontend
                     .CVA6Cfg   (CVA6Cfg),
                     .bht_update_t(bht_update_t),
                     .bht_prediction_t(bht_prediction_t),
+                    .bp_metadata_t(bp_metadata_t),
                     .MBP_ENTRIES(CVA6Cfg.ChoicePredictorSize),
                     .GBP_ENTRIES(CVA6Cfg.GlobalPredictorSize),
                     .LBP_ENTRIES(CVA6Cfg.LocalPredictorSize),
@@ -592,16 +586,7 @@ module frontend
                     .debug_mode_i,
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
-                    .update_gindex_i(bp_metadata_ftq_bp.gindex),
-                    .update_gbp_pred_i(bp_metadata_ftq_bp.gbp_pred),
-                    .update_lindex_i(bp_metadata_ftq_bp.lindex),
-                    .update_lbp_pred_i(bp_metadata_ftq_bp.lbp_pred),
-                    .update_is_unaligned_i(update_is_unaligned),
-                    .bht_prediction_o(bht_prediction),
-                    .gindex_o(bp_metadata_bp_ftq.gindex),
-                    .gbp_pred_o(bp_metadata_bp_ftq.gbp_pred),
-                    .lindex_o(bp_metadata_bp_ftq.lindex),
-                    .lbp_pred_o(bp_metadata_bp_ftq.lbp_pred)
+                    .bht_prediction_o(bht_prediction)
                 );
             end
             default: begin
@@ -609,6 +594,7 @@ module frontend
                     .CVA6Cfg   (CVA6Cfg),
                     .bht_update_t(bht_update_t),
                     .bht_prediction_t(bht_prediction_t),
+                    .bp_metadata_t(bp_metadata_t),
                     .NR_ENTRIES(CVA6Cfg.BHTEntries)
                 ) i_bht (
                     .clk_i,
@@ -617,35 +603,10 @@ module frontend
                     .debug_mode_i,
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
-                    .update_index_i(bp_metadata_ftq_bp.index),
-                    .update_is_unaligned_i(update_is_unaligned),
-                    .bht_prediction_o(bht_prediction),
-                    .index_o(bp_metadata_bp_ftq.index)
+                    .bht_prediction_o(bht_prediction)
                 );
             end
         endcase
-        ftq #(
-            .CVA6Cfg   (CVA6Cfg),
-            .bht_update_t(bht_update_t),
-            .bp_metadata_t(bp_metadata_t)
-        ) i_ftq (
-            .clk_i,
-            .rst_ni,
-            .flush_ftq_i(flush_bp_i | flush_i),
-            .debug_mode_i,
-            .bht_update_i(bht_update),
-            .bp_metadata_i(bp_metadata_bp_ftq),
-            .instr_queue_replay_addr_i(instr_queue_replay_addr),
-            .instr_queue_overflow_i(instr_queue_overflow),
-            .is_branch_i(is_branch),
-            .valid_i(instruction_valid),
-            .serving_unaligned_i(serving_unaligned),
-            .taken_rvc_cf_i(taken_rvc_cf),
-            .taken_rvi_cf_i(taken_rvi_cf),
-            .bp_metadata_o(bp_metadata_ftq_bp),
-            .is_unaligned_o(update_is_unaligned),
-            .ftq_overflow_o(ftq_overflow)
-        );
     end
 
     // we need to inspect up to CVA6Cfg.INSTR_PER_FETCH instructions for branches
@@ -673,7 +634,8 @@ module frontend
 
     instr_queue #(
         .CVA6Cfg(CVA6Cfg),
-        .fetch_entry_t(fetch_entry_t)
+        .fetch_entry_t(fetch_entry_t),
+        .bp_metadata_t(bp_metadata_t)
     ) i_instr_queue (
         .clk_i              (clk_i),
         .rst_ni             (rst_ni),
@@ -687,12 +649,12 @@ module frontend
         .exception_gva_i    (icache_gva_q),
         .predict_address_i  (predict_address),
         .cf_type_i          (cf_type),
+        .bp_metadata_i      (bp_metadata),
         .valid_i            (instruction_valid),     // from re-aligner
-        .ftq_overflow_i     (ftq_overflow), // from branch predictor
         .consumed_o         (instr_queue_consumed),
         .ready_o            (instr_queue_ready),
-        .overflow_o         (instr_queue_overflow),
-        .replay_addr_o      (instr_queue_replay_addr),
+        .replay_o           (replay),
+        .replay_addr_o      (replay_addr),
         .fetch_entry_o      (fetch_entry_o),         // to back-end
         .fetch_entry_valid_o(fetch_entry_valid_o),   // to back-end
         .fetch_entry_ready_i(fetch_entry_ready_i)    // to back-end

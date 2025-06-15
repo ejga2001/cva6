@@ -25,6 +25,7 @@ module lbp #(
   parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter type bht_update_t = logic,
   parameter type bht_prediction_t = logic,
+  parameter type bp_metadata_t = logic,
   parameter int unsigned LBP_ENTRIES = 512,
   parameter int unsigned LHR_ENTRIES = 512
 ) (
@@ -40,14 +41,8 @@ module lbp #(
   input logic [CVA6Cfg.VLEN-1:0] vpc_i,
   // Update bht with resolved address - EXECUTE
   input bht_update_t bht_update_i,
-  // Update bht with saved index - FTQ
-  input logic [CVA6Cfg.LocalPredictorIndexBits-1:0] update_index_i,
-  // Update row index if the instruction at the update pc is unaligned - FTQ
-  input logic update_is_unaligned_i,
   // Prediction from bht - FRONTEND
-  output bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
-  // BHT index to store it for a future update - FRONTEND
-  output logic [CVA6Cfg.LocalPredictorIndexBits-1:0] index_o
+  output bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o
 );
   // the last bit is always zero, we don't need it for indexing
   localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
@@ -78,11 +73,14 @@ module lbp #(
 
   logic [$clog2(NR_ROWS_LHR)-1:0] index, update_pc;
   logic [ROW_INDEX_BITS-1:0] update_row_index, update_row_index_q, check_update_row_index;
+  bp_metadata_t metadata, update_metadata;
 
-  assign index     = vpc_i[HISTORY_BITS-1:ROW_ADDR_BITS+OFFSET];
-  assign update_pc = bht_update_i.pc[HISTORY_BITS-1:ROW_ADDR_BITS+OFFSET];
+  assign index           = vpc_i[HISTORY_BITS-1:ROW_ADDR_BITS+OFFSET];
+  assign metadata.index  = index;
+  assign update_metadata = bht_update_i.metadata;
+  assign update_pc       = bht_update_i.pc[HISTORY_BITS-1:ROW_ADDR_BITS+OFFSET];
   if (CVA6Cfg.RVC) begin : gen_update_row_index
-    assign update_row_index = (update_is_unaligned_i) ? 0 : bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
+    assign update_row_index = bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
   end else begin
     assign update_row_index = '0;
   end
@@ -207,7 +205,7 @@ module lbp #(
             bht_updated[i].valid = 1'b1;
             bht_ram_we[i] = 1'b1;
             lhr_ram_write_address[i*$clog2(NR_ROWS_LHR)+:$clog2(NR_ROWS_LHR)] = update_pc;
-            bht_ram_write_address[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = update_index_i;
+            bht_ram_write_address[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = update_metadata.index;
           end
         end
       end
@@ -217,7 +215,7 @@ module lbp #(
           //When asynchronous RAM is used, the address can be updated on the cycle when data is read
           if (!CVA6Cfg.FpgaAlteraEn) begin
             lhr_ram_read_address_1[i*$clog2(NR_ROWS_LHR)+:$clog2(NR_ROWS_LHR)] = update_pc;
-            bht_ram_read_address_1[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = update_index_i;
+            bht_ram_read_address_1[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = update_metadata.index;
           end
           lhr[i] = lhr_ram_rdata_1[i*LHR_WORD_BITS+:LHR_WORD_BITS];
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:CVA6Cfg.LocalCtrBits];
@@ -253,7 +251,6 @@ module lbp #(
             lhr_ram_read_address_0[i*$clog2(NR_ROWS_LHR)+:$clog2(NR_ROWS_LHR)] = index;
             bht_ram_read_address_0[i*$clog2(NR_ROWS_LBP)+:$clog2(NR_ROWS_LBP)] = lhr_ram_rdata_0[i*LHR_WORD_BITS+:LHR_WORD_BITS];
           end
-          index_o = lhr_ram_rdata_0[i*LHR_WORD_BITS+:LHR_WORD_BITS];
           //When synchronous RAM is used and data is read right after writing, we need some buffering
           // This is one cycle of buffering
           if (CVA6Cfg.FpgaAlteraEn && bht_updated_valid[i][0] && vpc_q == bht_updated_pc[i][0]) begin
@@ -267,6 +264,7 @@ module lbp #(
           end else begin
             bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+CVA6Cfg.LocalCtrBits];
             bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+(CVA6Cfg.LocalCtrBits-1)];
+            bht_prediction_o[i].metadata = metadata;
           end
         end
       end

@@ -45,49 +45,50 @@
 
 module instr_queue
   import ariane_pkg::*;
-#(
+  #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
-    parameter type fetch_entry_t = logic
-) (
-    // Subsystem Clock - SUBSYSTEM
-    input logic clk_i,
-    // Asynchronous reset active low - SUBSYSTEM
-    input logic rst_ni,
-    // Fetch flush request - CONTROLLER
-    input logic flush_i,
-    // Instruction - instr_realign
-    input logic [CVA6Cfg.INSTR_PER_FETCH-1:0][31:0] instr_i,
-    // Instruction address - instr_realign
-    input logic [CVA6Cfg.INSTR_PER_FETCH-1:0][CVA6Cfg.VLEN-1:0] addr_i,
-    // Instruction is valid - instr_realign
-    input logic [CVA6Cfg.INSTR_PER_FETCH-1:0] valid_i,
-    // Handshake’s ready with CACHE - CACHE
-    output logic ready_o,
-    // Indicates instructions consummed, or popped by ID_STAGE - FRONTEND
-    output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] consumed_o,
-    // Exception (which is page-table fault) - CACHE
-    input ariane_pkg::frontend_exception_t exception_i,
-    // Exception address - CACHE
-    input logic [CVA6Cfg.VLEN-1:0] exception_addr_i,
-    input logic [CVA6Cfg.GPLEN-1:0] exception_gpaddr_i,
-    input logic [31:0] exception_tinst_i,
-    input logic exception_gva_i,
-    // Branch predict - FRONTEND
-    input logic [CVA6Cfg.VLEN-1:0] predict_address_i,
-    // Instruction predict address - FRONTEND
-    input ariane_pkg::cf_t [CVA6Cfg.INSTR_PER_FETCH-1:0] cf_type_i,
-    // input from branch predictor to see if the fetch target queue overflows
-    input logic ftq_overflow_i,
-    // Replay instruction because one of the FIFO was full - FRONTEND
-    output logic overflow_o,
-    // Address at which to replay the fetch - FRONTEND
-    output logic [CVA6Cfg.VLEN-1:0] replay_addr_o,
-    // Handshake’s data with ID_STAGE - ID_STAGE
-    output fetch_entry_t [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_o,
-    // Handshake’s valid with ID_STAGE - ID_STAGE
-    output logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_valid_o,
-    // Handshake’s ready with ID_STAGE - ID_STAGE
-    input logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_ready_i
+    parameter type fetch_entry_t = logic,
+    parameter type bp_metadata_t = logic
+  ) (
+  // Subsystem Clock - SUBSYSTEM
+  input logic clk_i,
+  // Asynchronous reset active low - SUBSYSTEM
+  input logic rst_ni,
+  // Fetch flush request - CONTROLLER
+  input logic flush_i,
+  // Instruction - instr_realign
+  input logic [CVA6Cfg.INSTR_PER_FETCH-1:0][31:0] instr_i,
+  // Instruction address - instr_realign
+  input logic [CVA6Cfg.INSTR_PER_FETCH-1:0][CVA6Cfg.VLEN-1:0] addr_i,
+  // Instruction is valid - instr_realign
+  input logic [CVA6Cfg.INSTR_PER_FETCH-1:0] valid_i,
+  // Branch Predictor metadata
+  input bp_metadata_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bp_metadata_i,
+  // Handshake’s ready with CACHE - CACHE
+  output logic ready_o,
+  // Indicates instructions consummed, or popped by ID_STAGE - FRONTEND
+  output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] consumed_o,
+  // Exception (which is page-table fault) - CACHE
+  input ariane_pkg::frontend_exception_t exception_i,
+  // Exception address - CACHE
+  input logic [CVA6Cfg.VLEN-1:0] exception_addr_i,
+  input logic [CVA6Cfg.GPLEN-1:0] exception_gpaddr_i,
+  input logic [31:0] exception_tinst_i,
+  input logic exception_gva_i,
+  // Branch predict - FRONTEND
+  input logic [CVA6Cfg.VLEN-1:0] predict_address_i,
+  // Instruction predict address - FRONTEND
+  input ariane_pkg::cf_t [CVA6Cfg.INSTR_PER_FETCH-1:0] cf_type_i,
+  // Replay instruction because one of the FIFO was  full - FRONTEND
+  output logic replay_o,
+  // Address at which to replay the fetch - FRONTEND
+  output logic [CVA6Cfg.VLEN-1:0] replay_addr_o,
+  // Handshake’s data with ID_STAGE - ID_STAGE
+  output fetch_entry_t [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_o,
+  // Handshake’s valid with ID_STAGE - ID_STAGE
+  output logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_valid_o,
+  // Handshake’s ready with ID_STAGE - ID_STAGE
+  input logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_ready_i
 );
 
   // Calculate next index based on whether superscalar is enabled or not.
@@ -101,6 +102,7 @@ module instr_queue
     logic [CVA6Cfg.GPLEN-1:0]        ex_gpaddr;  // lower GPLEN bits of tval2 for exception
     logic [31:0]                     ex_tinst;   // tinst of exception
     logic                            ex_gva;
+    bp_metadata_t                    bp_metadata;
   } instr_data_t;
 
   logic [CVA6Cfg.LOG2_INSTR_PER_FETCH-1:0] branch_index;
@@ -114,7 +116,6 @@ module instr_queue
   // address queue
   logic [           CVA6Cfg.VLEN-1:0] address_out;
   logic                               pop_address;
-  logic                               valid_cf_push;
   logic                               push_address;
   logic                               full_address;
   logic                               address_overflow;
@@ -137,8 +138,8 @@ module instr_queue
   logic [CVA6Cfg.INSTR_PER_FETCH-1:0] branch_mask;
   logic [CVA6Cfg.INSTR_PER_FETCH-1:0] taken;
   // shift amount, e.g.: instructions we want to retire
-  logic [CVA6Cfg.LOG2_INSTR_PER_FETCH:0] popcount, popcount_push_instr;
-  logic [CVA6Cfg.LOG2_INSTR_PER_FETCH-1:0] shamt, shamt_push_instr;
+  logic [CVA6Cfg.LOG2_INSTR_PER_FETCH:0] popcount;
+  logic [CVA6Cfg.LOG2_INSTR_PER_FETCH-1:0] shamt;
   logic [CVA6Cfg.INSTR_PER_FETCH-1:0] valid;
   logic [CVA6Cfg.INSTR_PER_FETCH*2-1:0] consumed_extended;
   // FIFO mask
@@ -146,6 +147,7 @@ module instr_queue
   logic [CVA6Cfg.INSTR_PER_FETCH-1:0] fifo_pos;
   logic [CVA6Cfg.INSTR_PER_FETCH*2-1:0][31:0] instr;
   ariane_pkg::cf_t [CVA6Cfg.INSTR_PER_FETCH*2-1:0] cf;
+  bp_metadata_t [CVA6Cfg.INSTR_PER_FETCH*2-1:0] bp_metadata;
   // replay interface
   logic [CVA6Cfg.INSTR_PER_FETCH-1:0] instr_overflow_fifo;
 
@@ -159,12 +161,12 @@ module instr_queue
 
     // calculate a branch mask, e.g.: get the first taken branch
     lzc #(
-        .WIDTH(CVA6Cfg.INSTR_PER_FETCH),
-        .MODE (0)                         // count trailing zeros
+      .WIDTH(CVA6Cfg.INSTR_PER_FETCH),
+      .MODE (0)                         // count trailing zeros
     ) i_lzc_branch_index (
-        .in_i   (taken),         // we want to count trailing zeros
-        .cnt_o  (branch_index),  // first branch on branch_index
-        .empty_o()
+      .in_i   (taken),         // we want to count trailing zeros
+      .cnt_o  (branch_index),  // first branch on branch_index
+      .empty_o()
     );
 
 
@@ -184,10 +186,10 @@ module instr_queue
     assign consumed_o = consumed_extended[CVA6Cfg.INSTR_PER_FETCH-1:0];
     // count the numbers of valid instructions we've pushed from this package
     popcount #(
-        .INPUT_WIDTH(CVA6Cfg.INSTR_PER_FETCH)
+      .INPUT_WIDTH(CVA6Cfg.INSTR_PER_FETCH)
     ) i_popcount (
-        .data_i    (push_instr_fifo),
-        .popcount_o(popcount)
+      .data_i    (push_instr_fifo),
+      .popcount_o(popcount)
     );
     assign shamt = popcount[$bits(shamt)-1:0];
 
@@ -211,6 +213,8 @@ module instr_queue
       assign instr[i+CVA6Cfg.INSTR_PER_FETCH] = instr_i[i];
       assign cf[i] = cf_type_i[i];
       assign cf[i+CVA6Cfg.INSTR_PER_FETCH] = cf_type_i[i];
+      assign bp_metadata[i] = bp_metadata_i[i];
+      assign bp_metadata[i+CVA6Cfg.INSTR_PER_FETCH] = bp_metadata_i[i];
     end
 
     // shift the inputs
@@ -229,6 +233,7 @@ module instr_queue
         assign instr_data_in[i].ex_tinst = '0;
         assign instr_data_in[i].ex_gva = 1'b0;
       end
+      assign instr_data_in[i].bp_metadata = bp_metadata[CVA6Cfg.INSTR_PER_FETCH+i-idx_is_q];
       /* verilator lint_on WIDTH */
     end
   end else begin : gen_multiple_instr_per_fetch_without_C
@@ -266,6 +271,7 @@ module instr_queue
       assign instr_data_in[0].ex_tinst = '0;
       assign instr_data_in[0].ex_gva = 1'b0;
     end
+    assign instr_data_in[0].bp_metadata = bp_metadata_i[0];
     /* verilator lint_on WIDTH */
   end
 
@@ -283,24 +289,15 @@ module instr_queue
     assign instr_overflow_fifo = instr_queue_full & valid_i;
   end
   assign instr_overflow = |instr_overflow_fifo;  // at least one instruction overflowed
-  assign address_overflow = full_address & valid_cf_push;
-  assign overflow_o = instr_overflow | address_overflow;
+  assign address_overflow = full_address & push_address;
+  assign replay_o = instr_overflow | address_overflow;
 
   if (CVA6Cfg.RVC) begin : gen_replay_addr_o_with_c
     // select the address, in the case of an address fifo overflow just
     // use the base of this package
     // if we successfully pushed some instructions we can output the next instruction
     // which we didn't manage to push
-    // this count doesn't include other overflows
-    popcount #(
-      .INPUT_WIDTH   (CVA6Cfg.INSTR_PER_FETCH)
-    ) i_popcount_push_instr (
-      .data_i     (push_instr),
-      .popcount_o (popcount_push_instr)
-    );
-    assign shamt_push_instr = popcount_push_instr[$bits(shamt_push_instr)-1:0];
-    assign replay_addr_o = address_overflow ? addr_i[0] : addr_i[shamt_push_instr];
-    //assign replay_addr_o = (address_overflow) ? addr_i[0] : addr_i[shamt];
+    assign replay_addr_o = (address_overflow) ? addr_i[0] : addr_i[shamt];
   end else begin : gen_replay_addr_o_without_C
     assign replay_addr_o = addr_i[0];
   end
@@ -319,8 +316,8 @@ module instr_queue
   for (genvar i = 0; i < CVA6Cfg.NrIssuePorts; i++) begin
     if (CVA6Cfg.INSTR_PER_FETCH > 1) begin
       assign idx_ds[i+1] = {
-        idx_ds[i][CVA6Cfg.INSTR_PER_FETCH-2:0], idx_ds[i][CVA6Cfg.INSTR_PER_FETCH-1]
-      };
+          idx_ds[i][CVA6Cfg.INSTR_PER_FETCH-2:0], idx_ds[i][CVA6Cfg.INSTR_PER_FETCH-1]
+          };
     end else begin
       assign idx_ds[i+1] = idx_ds[i];
     end
@@ -344,6 +341,7 @@ module instr_queue
         fetch_entry_o[i].ex.tinst = '0;
         fetch_entry_o[i].branch_predict.predict_address = address_out;
         fetch_entry_o[i].branch_predict.cf = ariane_pkg::NoCF;
+        fetch_entry_o[i].branch_predict.metadata = '0;
       end
 
       // output mux select
@@ -360,15 +358,16 @@ module instr_queue
           fetch_entry_o[0].instruction = instr_data_out[i].instr;
           fetch_entry_o[0].ex.valid = instr_data_out[i].ex != ariane_pkg::FE_NONE;
           if (CVA6Cfg.TvalEn)
-            fetch_entry_o[0].ex.tval = {
-              {(CVA6Cfg.XLEN - CVA6Cfg.VLEN) {1'b0}}, instr_data_out[i].ex_vaddr
-            };
+              fetch_entry_o[0].ex.tval = {
+                  {(CVA6Cfg.XLEN - CVA6Cfg.VLEN) {1'b0}}, instr_data_out[i].ex_vaddr
+                  };
           if (CVA6Cfg.RVH) begin
             fetch_entry_o[0].ex.tval2 = instr_data_out[i].ex_gpaddr;
             fetch_entry_o[0].ex.tinst = instr_data_out[i].ex_tinst;
             fetch_entry_o[0].ex.gva   = instr_data_out[i].ex_gva;
           end
           fetch_entry_o[0].branch_predict.cf = instr_data_out[i].cf;
+          fetch_entry_o[0].branch_predict.metadata = instr_data_out[i].bp_metadata;
           pop_instr[i] = fetch_entry_fire[0];
         end
 
@@ -411,7 +410,7 @@ module instr_queue
         fetch_entry_o[0].ex.cause = riscv::INSTR_PAGE_FAULT;
       end
       if (CVA6Cfg.TvalEn)
-        fetch_entry_o[0].ex.tval = {{64 - CVA6Cfg.VLEN{1'b0}}, instr_data_out[0].ex_vaddr};
+          fetch_entry_o[0].ex.tval = {{64 - CVA6Cfg.VLEN{1'b0}}, instr_data_out[0].ex_vaddr};
       else fetch_entry_o[0].ex.tval = '0;
       if (CVA6Cfg.RVH) begin
         fetch_entry_o[0].ex.tval2 = instr_data_out[0].ex_gpaddr;
@@ -425,6 +424,7 @@ module instr_queue
 
       fetch_entry_o[0].branch_predict.predict_address = address_out;
       fetch_entry_o[0].branch_predict.cf = instr_data_out[0].cf;
+      fetch_entry_o[0].branch_predict.cf = instr_data_out[0].bp_metadata;
 
       pop_instr[0] = fetch_entry_valid_o[0] & fetch_entry_ready_i[0];
     end
@@ -443,8 +443,8 @@ module instr_queue
   assign pc_j[0] = pc_q;
   for (genvar i = 0; i < CVA6Cfg.NrIssuePorts; i++) begin
     assign pc_j[i+1] = fetch_entry_is_cf[i] ? address_out : (
-      pc_j[i] + ((fetch_entry_o[i].instruction[1:0] != 2'b11) ? 'd2 : 'd4)
-    );
+        pc_j[i] + ((fetch_entry_o[i].instruction[1:0] != 2'b11) ? 'd2 : 'd4)
+        );
   end
 
   always_comb begin
@@ -471,55 +471,53 @@ module instr_queue
   // FIFOs
   for (genvar i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin : gen_instr_fifo
     // Make sure we don't save any instructions if we couldn't save the address
-    //assign push_instr_fifo[i] = push_instr[i] & ~address_overflow;
-    assign push_instr_fifo[i] = push_instr[i] & ~address_overflow & ~ftq_overflow_i;
+    assign push_instr_fifo[i] = push_instr[i] & ~address_overflow;
     cva6_fifo_v3 #(
-        .FPGA_ALTERA(CVA6Cfg.FpgaAlteraEn),
-        .DEPTH(ariane_pkg::FETCH_FIFO_DEPTH),
-        .dtype(instr_data_t),
-        .FPGA_EN(CVA6Cfg.FpgaEn)
+      .FPGA_ALTERA(CVA6Cfg.FpgaAlteraEn),
+      .DEPTH(ariane_pkg::FETCH_FIFO_DEPTH),
+      .dtype(instr_data_t),
+      .FPGA_EN(CVA6Cfg.FpgaEn)
     ) i_fifo_instr_data (
-        .clk_i     (clk_i),
-        .rst_ni    (rst_ni),
-        .flush_i   (flush_i),
-        .testmode_i(1'b0),
-        .full_o    (instr_queue_full[i]),
-        .empty_o   (instr_queue_empty[i]),
-        .usage_o   (),
-        .data_i    (instr_data_in[i]),
-        .push_i    (push_instr_fifo[i]),
-        .data_o    (instr_data_out[i]),
-        .pop_i     (pop_instr[i])
+      .clk_i     (clk_i),
+      .rst_ni    (rst_ni),
+      .flush_i   (flush_i),
+      .testmode_i(1'b0),
+      .full_o    (instr_queue_full[i]),
+      .empty_o   (instr_queue_empty[i]),
+      .usage_o   (),
+      .data_i    (instr_data_in[i]),
+      .push_i    (push_instr_fifo[i]),
+      .data_o    (instr_data_out[i]),
+      .pop_i     (pop_instr[i])
     );
   end
   // or reduce and check whether we are retiring a taken branch (might be that the corresponding)
   // fifo is full.
   always_comb begin
-    valid_cf_push = 1'b0;
+    push_address = 1'b0;
     // check if we are pushing a ctrl flow change, if so save the address
     for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
-      valid_cf_push |= push_instr[i] & (instr_data_in[i].cf != ariane_pkg::NoCF);
+      push_address |= push_instr[i] & (instr_data_in[i].cf != ariane_pkg::NoCF);
     end
-    push_address = valid_cf_push & ~full_address & ~ftq_overflow_i;
   end
 
   cva6_fifo_v3 #(
-      .FPGA_ALTERA(CVA6Cfg.FpgaAlteraEn),
-      .DEPTH      (ariane_pkg::FETCH_ADDR_FIFO_DEPTH),
-      .DATA_WIDTH (CVA6Cfg.VLEN),
-      .FPGA_EN    (CVA6Cfg.FpgaEn)
+    .FPGA_ALTERA(CVA6Cfg.FpgaAlteraEn),
+    .DEPTH      (ariane_pkg::FETCH_ADDR_FIFO_DEPTH),
+    .DATA_WIDTH (CVA6Cfg.VLEN),
+    .FPGA_EN    (CVA6Cfg.FpgaEn)
   ) i_fifo_address (
-      .clk_i     (clk_i),
-      .rst_ni    (rst_ni),
-      .flush_i   (flush_i),
-      .testmode_i(1'b0),
-      .full_o    (full_address),
-      .empty_o   (),
-      .usage_o   (),
-      .data_i    (predict_address_i),
-      .push_i    (push_address),
-      .data_o    (address_out),
-      .pop_i     (pop_address)
+    .clk_i     (clk_i),
+    .rst_ni    (rst_ni),
+    .flush_i   (flush_i),
+    .testmode_i(1'b0),
+    .full_o    (full_address),
+    .empty_o   (),
+    .usage_o   (),
+    .data_i    (predict_address_i),
+    .push_i    (push_address & ~full_address),
+    .data_o    (address_out),
+    .pop_i     (pop_address)
   );
 
   unread i_unread_branch_mask (.d_i(|branch_mask_extended));
@@ -564,18 +562,18 @@ module instr_queue
     end
   end
 
-  // pragma translate_off
+    // pragma translate_off
 `ifndef VERILATOR
   replay_address_fifo :
-  assert property (@(posedge clk_i) disable iff (!rst_ni) overflow_o & ftq_overflow_i |-> !i_fifo_address.push_i)
-  else $fatal(1, "[instr_queue] Pushing address although replay asserted");
+      assert property (@(posedge clk_i) disable iff (!rst_ni) replay_o |-> !i_fifo_address.push_i)
+      else $fatal(1, "[instr_queue] Pushing address although replay asserted");
 
   output_select_onehot :
-  assert property (@(posedge clk_i) $onehot0(idx_ds_q))
-  else begin
-    $error("Output select should be one-hot encoded");
-    $stop();
-  end
+      assert property (@(posedge clk_i) $onehot0(idx_ds_q))
+      else begin
+        $error("Output select should be one-hot encoded");
+        $stop();
+      end
 `endif
   // pragma translate_on
 endmodule

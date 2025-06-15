@@ -25,6 +25,7 @@ module mbp #(
   parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter type bht_update_t = logic,
   parameter type bht_prediction_t = logic,
+  parameter type bp_metadata_t = logic,
   parameter int unsigned NR_ENTRIES = 1024
 ) (
   // Subsystem Clock - SUBSYSTEM
@@ -39,11 +40,6 @@ module mbp #(
   input logic [CVA6Cfg.VLEN-1:0] vpc_i,
   // Update bht with resolved address - EXECUTE
   input bht_update_t bht_update_i,
-  // Previous predictions from the other BPs
-  input bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] update_gbp_pred_i,
-  input bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] update_lbp_pred_i,
-  // Update row index if the instruction at the update pc is unaligned - FTQ
-  input logic update_is_unaligned_i,
   // Prediction from bht - FRONTEND
   output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] select_prediction_o
 );
@@ -69,11 +65,13 @@ module mbp #(
 
   logic [$clog2(NR_ROWS)-1:0] index, update_pc;
   logic [ROW_INDEX_BITS-1:0] update_row_index, update_row_index_q, check_update_row_index;
+  bp_metadata_t update_metadata;
 
   assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
+  assign update_metadata = bht_update_i.metadata;
   assign update_pc = bht_update_i.pc[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
   if (CVA6Cfg.RVC) begin : gen_update_row_index
-    assign update_row_index = (update_is_unaligned_i) ? 0 : bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
+    assign update_row_index = bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
   end else begin
     assign update_row_index = '0;
   end
@@ -197,25 +195,25 @@ module mbp #(
           bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS+:CVA6Cfg.ChoiceCtrBits];
           case (bht[i].saturation_counter)
             (CVA6Cfg.ChoiceCtrBits)'(0): begin
-              if ((!update_lbp_pred_i[i].valid || (check_bht_update_taken != update_lbp_pred_i[i].taken))
-                  && (update_gbp_pred_i[i].valid && (check_bht_update_taken == update_gbp_pred_i[i].taken)))
+              if ((!update_metadata.lbp_valid || (check_bht_update_taken != update_metadata.lbp_taken))
+                  && (update_metadata.gbp_valid && (check_bht_update_taken == update_metadata.gbp_taken)))
                   bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
               else
                   bht_updated[i].saturation_counter = (CVA6Cfg.ChoiceCtrBits)'(0);
             end
             (CVA6Cfg.ChoiceCtrBits)'(CTR_MAX_VAL): begin
-              if ((!update_gbp_pred_i[i].valid || (check_bht_update_taken != update_gbp_pred_i[i].taken))
-                  && (update_lbp_pred_i[i].valid && (check_bht_update_taken == update_lbp_pred_i[i].taken)))
+              if ((!update_metadata.gbp_valid || (check_bht_update_taken != update_metadata.gbp_taken))
+                  && (update_metadata.lbp_valid && (check_bht_update_taken == update_metadata.lbp_taken)))
                   bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
               else
                   bht_updated[i].saturation_counter = CTR_MAX_VAL;
             end
             default: begin
-              if ((!update_gbp_pred_i[i].valid || (check_bht_update_taken != update_gbp_pred_i[i].taken))
-                  && (update_lbp_pred_i[i].valid && (check_bht_update_taken == update_lbp_pred_i[i].taken)))
+              if ((!update_metadata.gbp_valid || (check_bht_update_taken != update_metadata.gbp_taken))
+                  && (update_metadata.lbp_valid && (check_bht_update_taken == update_metadata.lbp_taken)))
                   bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
-              else if ((!update_lbp_pred_i[i].valid || (check_bht_update_taken != update_lbp_pred_i[i].taken))
-                  && (update_gbp_pred_i[i].valid && (check_bht_update_taken == update_gbp_pred_i[i].taken)))
+              else if ((!update_metadata.lbp_valid || (check_bht_update_taken != update_metadata.lbp_taken))
+                  && (update_metadata.gbp_valid && (check_bht_update_taken == update_metadata.gbp_taken)))
                   bht_updated[i].saturation_counter = bht[i].saturation_counter + 1;
               else
                   bht_updated[i].saturation_counter = bht[i].saturation_counter;

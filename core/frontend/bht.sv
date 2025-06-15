@@ -25,6 +25,7 @@ module bht #(
   parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter type bht_update_t = logic,
   parameter type bht_prediction_t = logic,
+  parameter type bp_metadata_t = logic,
   parameter int unsigned NR_ENTRIES = 1024
 ) (
   // Subsystem Clock - SUBSYSTEM
@@ -39,14 +40,8 @@ module bht #(
   input logic [CVA6Cfg.VLEN-1:0] vpc_i,
   // Update bht with resolved address - EXECUTE
   input bht_update_t bht_update_i,
-  // Update bht with saved index - FTQ
-  input logic [CVA6Cfg.BHTIndexBits-1:0] update_index_i,
-  // Update row index if the instruction at the update pc is unaligned - FTQ
-  input logic update_is_unaligned_i,
   // Prediction from bht - FRONTEND
-  output bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o,
-  // BHT index to store it for a future update - FRONTEND
-  output logic [CVA6Cfg.BHTIndexBits-1:0] index_o
+  output bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o
 );
   // the last bit is always zero, we don't need it for indexing
   localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
@@ -72,12 +67,14 @@ module bht #(
 
   logic [$clog2(NR_ROWS)-1:0] index, update_pc;
   logic [ROW_INDEX_BITS-1:0] update_row_index, update_row_index_q, check_update_row_index;
+  bp_metadata_t metadata, update_metadata;
 
   assign index     = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
-  assign index_o   = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
-  assign update_pc = update_index_i;
+  assign metadata.index = index;
+  assign update_metadata = bht_update_i.metadata;
+  assign update_pc = update_metadata.index;
   if (CVA6Cfg.RVC) begin : gen_update_row_index
-    assign update_row_index = (update_is_unaligned_i) ? 0 : bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
+    assign update_row_index = bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
   end else begin
     assign update_row_index = '0;
   end
@@ -242,6 +239,7 @@ module bht #(
           end else begin
             bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+CVA6Cfg.BimodalCtrBits];
             bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+(CVA6Cfg.BimodalCtrBits-1)];
+            bht_prediction_o[i].metadata = metadata;
           end
         end
       end

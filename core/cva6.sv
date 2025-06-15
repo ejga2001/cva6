@@ -33,12 +33,34 @@ module cva6
       rvfi_probes_instr_t instr;
     },
 
+    localparam type bp_0_metadata_t = struct packed {
+      logic [CVA6Cfg.BHTIndexBits-1:0] index;
+    },
+
+    localparam type bp_1_metadata_t = struct packed {
+      logic [CVA6Cfg.GlobalPredictorIndexBits-1:0] index;
+    },
+
+    localparam type bp_2_metadata_t = struct packed {
+      logic [CVA6Cfg.LocalPredictorIndexBits-1:0] index;
+    },
+
+    localparam type bp_3_metadata_t = struct packed {
+      logic [CVA6Cfg.GlobalPredictorIndexBits-1:0] gindex;
+      logic                                        gbp_valid;
+      logic                                        gbp_taken;
+      logic [CVA6Cfg.LocalPredictorIndexBits-1:0] lindex;
+      logic                                        lbp_valid;
+      logic                                        lbp_taken;
+    },
+
     // branchpredict scoreboard entry
     // this is the struct which we will inject into the pipeline to guide the various
     // units towards the correct branch decision and resolve
     localparam type branchpredict_sbe_t = struct packed {
       cf_t                     cf;               // type of control flow prediction
       logic [CVA6Cfg.VLEN-1:0] predict_address;  // target address at which to jump, or not
+      `GET_BP_METADATA_T(`BRANCH_PRED_IMPL) metadata;
     },
 
     localparam type exception_t = struct packed {
@@ -134,6 +156,7 @@ module cva6
       logic                    is_mispredict;   // set if this was a mis-predict
       logic                    is_taken;        // branch is taken
       cf_t                     cf_type;         // Type of control flow change
+      `GET_BP_METADATA_T(`BRANCH_PRED_IMPL) metadata;
     },
 
     // All information needed to determine whether we need to associate an interrupt
@@ -351,30 +374,6 @@ module cva6
       M_EXT: (1 << (CVA6Cfg.XLEN - 1)) | CVA6Cfg.XLEN'(riscv::IRQ_M_EXT),
       HS_EXT: (1 << (CVA6Cfg.XLEN - 1)) | CVA6Cfg.XLEN'(riscv::IRQ_HS_EXT)
   };
-
-  localparam type bht_prediction_t = struct packed {
-    logic                    valid;
-    logic                    taken;
-  };
-
-  typedef struct packed {
-    logic [CVA6Cfg.BHTIndexBits-1:0] index;
-  } bp_0_metadata_t;
-
-  typedef struct packed {
-    logic [CVA6Cfg.GlobalPredictorIndexBits-1:0] index;
-  } bp_1_metadata_t;
-
-  typedef struct packed {
-    logic [CVA6Cfg.LocalPredictorIndexBits-1:0] index;
-  } bp_2_metadata_t;
-
-  typedef struct packed {
-    logic [CVA6Cfg.GlobalPredictorIndexBits-1:0] gindex;
-    bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] gbp_pred;
-    logic [CVA6Cfg.LocalPredictorIndexBits-1:0] lindex;
-    bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] lbp_pred;
-  } bp_3_metadata_t;
 
   // ------------------------------------------
   // Global Signals
@@ -674,8 +673,7 @@ module cva6
       .fetch_entry_t(fetch_entry_t),
       .icache_dreq_t(icache_dreq_t),
       .icache_drsp_t(icache_drsp_t),
-      .bp_metadata_t(`GET_BP_METADATA_T(`BRANCH_PRED_IMPL)),
-      .bht_prediction_t(bht_prediction_t)
+      .bp_metadata_t(`GET_BP_METADATA_T(`BRANCH_PRED_IMPL))
   ) i_frontend (
       .clk_i,
       .rst_ni,

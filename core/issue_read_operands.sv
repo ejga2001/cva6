@@ -1100,7 +1100,7 @@ module issue_read_operands
       end
       pc_o                     <= '0;
       is_compressed_instr_o    <= 1'b0;
-      branch_predict_o         <= {cf_t'(0), {CVA6Cfg.VLEN{1'b0}}};
+      branch_predict_o         <= '0; // {cf_t'(0), {CVA6Cfg.VLEN{1'b0}}};
       x_transaction_rejected_o <= 1'b0;
     end else begin
       fu_data_q <= fu_data_n;
