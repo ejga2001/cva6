@@ -2,12 +2,11 @@
 
 declare -A ALL_CONFIGS
 
-#BRANCH_PRED_IMPL_NAMES=("bht" "gbp" "lbp" "tournament")
-BRANCH_PRED_IMPL_NAMES=("lbp")
+BRANCH_PRED_IMPL_NAMES=("bht" "gbp" "lbp" "tournament")
 ALL_CONFIGS["bht"]="8192:3 16384:3 32768:3 65536:3 131072:3"
 ALL_CONFIGS["gbp"]="8192:3 16384:3 32768:3 65536:3 131072:3"
-ALL_CONFIGS["lbp"]="4096:2048:1" # 4096:4096:3 8192:8192:2 16384:16384:1 65536:16384:2"
-ALL_CONFIGS["tournament"]="1024:2048:4096:1024 1024:4096:8192:2048 2048:16384:16384:2048 8192:8192:32768:8192 8192:16384:65536:16384"
+ALL_CONFIGS["lbp"]="4096:2048:1 4096:4096:3 8192:8192:2 16384:16384:1 65536:16384:3"
+ALL_CONFIGS["tournament"]="1024:2048:4096:1024 2048:8192:4096:2048 2048:16384:16384:2048 8192:8192:32768:8192 8192:8192:16384:32768"
 
 export BOARD=$1
 export XILINX_PART=$2
@@ -199,7 +198,7 @@ for (( i = 0; i < ${#BRANCH_PRED_IMPL_NAMES[@]}; i++ )); do
     done
 done
 
-cat "$temp" | xargs -P5 -I{} bash -c '
+cat "$temp" | xargs -P1 -I{} bash -c '
   tuple="{}"
   impl_name=$(echo ${tuple} | tr -s " " | cut -d " " -f1,1)
   config=$(echo ${tuple} | tr -s " " | cut -d " " -f2,2)

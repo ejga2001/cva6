@@ -13,15 +13,15 @@ module tage #(
     parameter type tage_update_t = struct packed {
         logic                                valid;
         logic             [CVA6Cfg.VLEN-1:0] pc;
+        logic                                taken;
         logic   [CVA6Cfg.histBufferSize-1:0] ghist;
         logic     [CVA6Cfg.pathHistBits-1:0] phist;
         logic                                pred_taken;
         logic                                provider_taken;
         logic                                alt_taken;
-        logic                                taken;
         logic [$clog2(CVA6Cfg.nTagHistoryTables)-1:0] pred_id;
         logic [$clog2(CVA6Cfg.nTagHistoryTables)-1:0] alt_id;
-        logic [$clog2(CVA6Cfg.nTagHistoryTables)-1:0][$clog2(CVA6Cfg.nTagHistoryTables)-1:0] u_is_null;
+        logic [$clog2(CVA6Cfg.nTagHistoryTables)-1:0] u_is_null;
         logic                                mispredict;
         logic                                pseudo_new_alloc;
     },
