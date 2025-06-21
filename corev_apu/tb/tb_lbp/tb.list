@@ -1,0 +1,9 @@
+${CVA6_REPO}/core/include/config_pkg.sv
+${CVA6_REPO}/core/include/cv64a6_imafdc_sv39_config_pkg.sv
+${CVA6_REPO}/core/include/riscv_pkg.sv
+${CVA6_REPO}/core/include/build_config_pkg.sv
+${CVA6_REPO}/core/include/ariane_pkg.sv
+${CVA6_REPO}/vendor/pulp-platform/fpga-support/rtl/AsyncThreePortRam.sv
+${CVA6_REPO}/core/frontend/lbp.sv
+hdl/tb_pkg.sv
+hdl/tb.sv

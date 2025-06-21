@@ -252,7 +252,7 @@ module gbp #(
     end
 
     for (genvar i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin : gen_bht_ram
-      if (CVA6Cfg.FpgaAlteraEn) begin
+      if (CVA6Cfg.FpgaAlteraEn) begin : gen_sync_ram
         SyncThreePortRam #(
           .ADDR_WIDTH($clog2(NR_ROWS)),
           .DATA_DEPTH(NR_ROWS),
@@ -268,7 +268,7 @@ module gbp #(
           .RdData_DO_1(bht_ram_rdata_1[i*BRAM_WORD_BITS+:BRAM_WORD_BITS])
         );
 
-      end else begin
+      end else begin : gen_async_ram
         AsyncThreePortRam #(
           .ADDR_WIDTH($clog2(NR_ROWS)),
           .DATA_DEPTH(NR_ROWS),
