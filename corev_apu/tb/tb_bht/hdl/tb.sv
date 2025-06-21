@@ -61,7 +61,7 @@ module tb;
     logic flush_bp_i;
     logic debug_mode_i;
 
-    bht_frontend_if #(
+    bht_if #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t)
@@ -105,7 +105,7 @@ module tb;
         clk_i = 1'b0;
         rst_ni = 1'b0;
 
-        preload_array(t.env.agent_frontend.scoreboard.bht_shadow);
+        preload_array(t.env.agent.scoreboard.bht_shadow);
 
         #(CLOCK_PERIOD) rst_ni = 1'b1;
 

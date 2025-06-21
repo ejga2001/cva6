@@ -18,7 +18,7 @@ class Test #(
         .NR_ENTRIES(NR_ENTRIES)
     ) env;
 
-    virtual bht_frontend_if #(
+    virtual bht_if #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t)
@@ -26,7 +26,7 @@ class Test #(
 
     function automatic new (
         int ncycles,
-        virtual bht_frontend_if #(
+        virtual bht_if #(
             .CVA6Cfg(CVA6Cfg),
             .bht_update_t(bht_update_t),
             .bht_prediction_t(bht_prediction_t)

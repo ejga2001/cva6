@@ -3,7 +3,7 @@
  * Created by enrique, 22/03/25
  */
 
-class GeneratorFrontend #(
+class Generator #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter type bht_update_t = logic,
     parameter type bht_prediction_t = logic,
@@ -116,7 +116,7 @@ class GeneratorFrontend #(
         ref bht_prediction_t bht_prediction,
         bit cf_path
     );
-        TransactionFrontend #(
+        Transaction #(
             .CVA6Cfg(CVA6Cfg),
             .bht_update_t(bht_update_t),
             .bht_prediction_t(bht_prediction_t),
@@ -245,7 +245,7 @@ class GeneratorFrontend #(
         return selected_stream.is_taken(instr);
     endfunction : is_taken
 
-    function automatic TransactionFrontend #(
+    function automatic Transaction #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t),
@@ -256,7 +256,7 @@ class GeneratorFrontend #(
         ) instr,
         bht_update_t bht_update
     );
-        TransactionFrontend #(
+        Transaction #(
             .CVA6Cfg(CVA6Cfg),
             .bht_update_t(bht_update_t),
             .bht_prediction_t(bht_prediction_t),
@@ -278,4 +278,4 @@ class GeneratorFrontend #(
         return selected_stream.change_ctrl_flow(instr, valid, taken);
     endfunction : change_ctrl_flow
 
-endclass : GeneratorFrontend
+endclass : Generator

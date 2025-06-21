@@ -3,32 +3,32 @@
  * Created by enrique, 17/05/25
  */
 
-class AgentFrontend #(
+class Agent #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter type bht_update_t = logic,
     parameter type bht_prediction_t = logic,
     parameter type bp_metadata_t = logic,
     parameter NR_ENTRIES = 1024
 );
-    GeneratorFrontend #(
+    Generator #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t),
         .bp_metadata_t(bp_metadata_t)
     ) generator;
-    DriverFrontend #(
+    Driver #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t),
         .bp_metadata_t(bp_metadata_t)
     ) driver;
-    MonitorFrontend #(
+    Monitor #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t),
         .bp_metadata_t(bp_metadata_t)
     ) monitor;
-    ScoreboardFrontend #(
+    Scoreboard #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t),
@@ -39,7 +39,7 @@ class AgentFrontend #(
     mailbox drv_mbx, scb_mbx;
     event drv_done;
 
-    virtual bht_frontend_if #(
+    virtual bht_if #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t)
@@ -47,7 +47,7 @@ class AgentFrontend #(
 
     function automatic new(
         int ncycles,
-        virtual bht_frontend_if #(
+        virtual bht_if #(
             .CVA6Cfg(CVA6Cfg),
             .bht_update_t(bht_update_t),
             .bht_prediction_t(bht_prediction_t)
@@ -70,4 +70,4 @@ class AgentFrontend #(
             scoreboard.run();
         join_any
     endtask : run
-endclass : AgentFrontend
+endclass : Agent

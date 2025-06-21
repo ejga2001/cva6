@@ -10,15 +10,15 @@ class Environment #(
     parameter type bp_metadata_t = logic,
     parameter NR_ENTRIES = 1024
 );
-    AgentFrontend #(
+    Agent #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t),
         .bp_metadata_t(bp_metadata_t),
         .NR_ENTRIES(NR_ENTRIES)
-    ) agent_frontend;
+    ) agent;
 
-    virtual bht_frontend_if #(
+    virtual bht_if #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t)
@@ -26,19 +26,19 @@ class Environment #(
 
     function automatic new (
         int ncycles,
-        virtual bht_frontend_if #(
+        virtual bht_if #(
             .CVA6Cfg(CVA6Cfg),
             .bht_update_t(bht_update_t),
             .bht_prediction_t(bht_prediction_t)
         ) vif
     );
         this.vif = vif;
-        agent_frontend = new(ncycles, vif);
+        agent = new(ncycles, vif);
     endfunction : new
 
     task run;
         fork
-            agent_frontend.run();
+            agent.run();
         join_any
     endtask : run
 endclass : Environment

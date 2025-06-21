@@ -3,7 +3,7 @@
  * Created by enrique, 20/06/25
  */
 
-class ScoreboardFrontend #(
+class Scoreboard #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter type bht_update_t = logic,
     parameter type bht_prediction_t = logic,
@@ -28,7 +28,7 @@ class ScoreboardFrontend #(
 
     task run;
         forever begin
-            TransactionFrontend #(
+            Transaction #(
                 .CVA6Cfg(CVA6Cfg),
                 .bht_update_t(bht_update_t),
                 .bht_prediction_t(bht_prediction_t),
@@ -51,4 +51,4 @@ class ScoreboardFrontend #(
             bht_shadow.update_bht(trans.bht_update_i);
         end
     endtask : run
-endclass : ScoreboardFrontend
+endclass : Scoreboard

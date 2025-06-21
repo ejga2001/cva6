@@ -3,49 +3,57 @@
  * Created by enrique, 17/05/25
  */
 
-class MonitorFrontend #(
+class Driver #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter type bht_update_t = logic,
     parameter type bht_prediction_t = logic,
     parameter type bp_metadata_t = logic
 );
-    virtual bht_frontend_if #(
+    virtual bht_if #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t)
     ) vif;
-    mailbox scb_mbx;
+    local mailbox drv_mbx;
+    event drv_done;
 
-    function new (
-        virtual bht_frontend_if #(
+    function automatic new(
+        virtual bht_if #(
             .CVA6Cfg(CVA6Cfg),
             .bht_update_t(bht_update_t),
             .bht_prediction_t(bht_prediction_t)
         ) vif,
-        mailbox scb_mbx
+        mailbox drv_mbx,
+        ref event drv_done
     );
         this.vif = vif;
-        this.scb_mbx = scb_mbx;
-    endfunction
+        this.drv_mbx = drv_mbx;
+        this.drv_done = drv_done;
+    endfunction : new
 
     task run;
-        $display ("T=%0t [Monitor] starting ...", $time);
+        $display ("T=%0t [Driver] starting ...", $time);
         @(vif.cb_drv);
         forever begin
-            TransactionFrontend #(
+            Transaction #(
                 .CVA6Cfg(CVA6Cfg),
                 .bht_update_t(bht_update_t),
                 .bht_prediction_t(bht_prediction_t),
                 .bp_metadata_t(bp_metadata_t)
-            ) trans = new;
+            ) trans;
 
+            $display("T=%0t [Driver] waiting for item ...", $time);
+            drv_mbx.get(trans);
+            vif.cb_drv.vpc_i <= trans.vpc_i;
+            vif.cb_drv.bht_update_i <= trans.bht_update_i;
             @(vif.cb_drv);
-            trans.vpc_i = vif.cb_drv.vpc_i;
-            trans.bht_update_i = vif.cb_drv.bht_update_i;
+
             trans.bht_prediction_o = vif.cb_drv.bht_prediction_o;
 
-            scb_mbx.put(trans);
-            trans.display("Monitor");
+            trans.display("Driver");
+
+            -> drv_done;
         end
     endtask : run
-endclass : MonitorFrontend
+endclass : Driver
+

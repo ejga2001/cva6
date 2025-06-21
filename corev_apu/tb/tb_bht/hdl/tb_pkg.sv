@@ -3,16 +3,15 @@
  * Created by enrique, 22/03/25
  */
 
-`include "bht_frontend_if.svh"
+`include "bht_if.svh"
 
 package tb_pkg;
     typedef enum bit {
         JUMP, CONDITIONAL
     } branch_type;
     `include "bht_shadow.svh"
-    `include "transaction.svh"
     `include "abstract_instruction.svh"
-    `include "transaction_frontend.svh"
+    `include "transaction.svh"
     `include "exit_instruction.svh"
     `include "instruction.svh"
     `include "normal_instruction.svh"
@@ -20,11 +19,11 @@ package tb_pkg;
     `include "cond_branch_instruction.svh"
     `include "loop_branch_instruction.svh"
     `include "instr_stream.svh"
-    `include "generator_frontend.svh"
-    `include "driver_frontend.svh"
-    `include "monitor_frontend.svh"
-    `include "scoreboard_frontend.svh"
-    `include "agent_frontend.svh"
+    `include "generator.svh"
+    `include "driver.svh"
+    `include "monitor.svh"
+    `include "scoreboard.svh"
+    `include "agent.svh"
     `include "environment.svh"
     `include "test.svh"
 endpackage

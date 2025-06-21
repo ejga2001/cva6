@@ -4,7 +4,7 @@
  */
 
 `timescale 1ns/1ns
-interface bht_frontend_if #(
+interface bht_if #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter type bht_update_t = logic,
     parameter type bht_prediction_t = logic,
@@ -27,4 +27,4 @@ interface bht_frontend_if #(
         inout bht_update_i;
     endclocking : cb_drv
 
-endinterface : bht_frontend_if
+endinterface : bht_if
