@@ -19,12 +19,14 @@ class AgentFrontend #(
     DriverFrontend #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
-        .bht_prediction_t(bht_prediction_t)
+        .bht_prediction_t(bht_prediction_t),
+        .bp_metadata_t(bp_metadata_t)
     ) driver;
     MonitorFrontend #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
-        .bht_prediction_t(bht_prediction_t)
+        .bht_prediction_t(bht_prediction_t),
+        .bp_metadata_t(bp_metadata_t)
     ) monitor;
     ScoreboardFrontend #(
         .CVA6Cfg(CVA6Cfg),

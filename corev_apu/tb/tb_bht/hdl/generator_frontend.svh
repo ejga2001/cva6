@@ -119,7 +119,8 @@ class GeneratorFrontend #(
         TransactionFrontend #(
             .CVA6Cfg(CVA6Cfg),
             .bht_update_t(bht_update_t),
-            .bht_prediction_t(bht_prediction_t)
+            .bht_prediction_t(bht_prediction_t),
+            .bp_metadata_t(bp_metadata_t)
         ) trans;
 
         trans = get_transaction(instr, bht_update);
@@ -247,7 +248,8 @@ class GeneratorFrontend #(
     function automatic TransactionFrontend #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
-        .bht_prediction_t(bht_prediction_t)
+        .bht_prediction_t(bht_prediction_t),
+        .bp_metadata_t(bp_metadata_t)
     ) get_transaction (
         AbstractInstruction #(
             .CVA6Cfg(CVA6Cfg)
@@ -257,7 +259,8 @@ class GeneratorFrontend #(
         TransactionFrontend #(
             .CVA6Cfg(CVA6Cfg),
             .bht_update_t(bht_update_t),
-            .bht_prediction_t(bht_prediction_t)
+            .bht_prediction_t(bht_prediction_t),
+            .bp_metadata_t(bp_metadata_t)
         ) trans = new;
 
         trans.vpc_i = instr.get_vpc();

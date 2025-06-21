@@ -6,7 +6,8 @@
 class TransactionFrontend #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter type bht_update_t = logic,
-    parameter type bht_prediction_t = logic
+    parameter type bht_prediction_t = logic,
+    parameter type bp_metadata_t = logic
 ) extends Transaction;
     // INPUTS
     logic [CVA6Cfg.VLEN-1:0] vpc_i;
@@ -27,7 +28,7 @@ class TransactionFrontend #(
         $display("\tbht_update_i.valid = %x", bht_update_i.valid);
         $display("\tbht_update_i.pc = 0x%0h", bht_update_i.pc);
         $display("\tbht_update_i.taken = %x", bht_update_i.taken);
-        $display("\tbht_update_i.metadata.index = 0x%0h", bht_update_i.metadata);
+        $display("\tbht_update_i.metadata.index = 0x%0h", bht_update_i.metadata.index);
         $display("Outputs:");
         for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
             $display("\tbht_prediction_o[%0d].valid = %x", i, bht_prediction_o[i].valid);

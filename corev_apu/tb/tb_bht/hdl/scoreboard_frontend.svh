@@ -31,7 +31,8 @@ class ScoreboardFrontend #(
             TransactionFrontend #(
                 .CVA6Cfg(CVA6Cfg),
                 .bht_update_t(bht_update_t),
-                .bht_prediction_t(bht_prediction_t)
+                .bht_prediction_t(bht_prediction_t),
+                .bp_metadata_t(bp_metadata_t)
             ) trans;
 
             scb_mbx.get(trans);
