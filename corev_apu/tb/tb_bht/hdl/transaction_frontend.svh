@@ -23,17 +23,17 @@ class TransactionFrontend #(
     function automatic void display (string name);
         super.display(name);
         $display("T=%0t %s", $time, name);
-        $display("Inputs:");
-        $display("\tvpc_i = 0x%0h", vpc_i);
-        $display("\tbht_update_i.valid = %x", bht_update_i.valid);
-        $display("\tbht_update_i.pc = 0x%0h", bht_update_i.pc);
-        $display("\tbht_update_i.taken = %x", bht_update_i.taken);
-        $display("\tbht_update_i.metadata.index = 0x%0h", bht_update_i.metadata.index);
-        $display("Outputs:");
+        $display("\tInputs:");
+        $display("\t\tvpc_i = 0x%0h", vpc_i);
+        $display("\t\tbht_update_i.valid = %x", bht_update_i.valid);
+        $display("\t\tbht_update_i.pc = 0x%0h", bht_update_i.pc);
+        $display("\t\tbht_update_i.taken = %x", bht_update_i.taken);
+        $display("\t\tbht_update_i.metadata.index = 0x%0h", bht_update_i.metadata.index);
+        $display("\tOutputs:");
         for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
-            $display("\tbht_prediction_o[%0d].valid = %x", i, bht_prediction_o[i].valid);
-            $display("\tbht_prediction_o[%0d].taken = %x", i, bht_prediction_o[i].taken);
-            $display("\tbht_prediction_o[%0d].index = 0x%x", i, bht_prediction_o[i].metadata);
+            $display("\t\tbht_prediction_o[%0d].valid = %x", i, bht_prediction_o[i].valid);
+            $display("\t\tbht_prediction_o[%0d].taken = %x", i, bht_prediction_o[i].taken);
+            $display("\t\tbht_prediction_o[%0d].index = 0x%x", i, bht_prediction_o[i].metadata);
         end
     endfunction : display
 endclass : TransactionFrontend
