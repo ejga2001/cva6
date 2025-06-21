@@ -8,7 +8,7 @@ class TransactionBackend #(
     parameter type bht_update_t = logic
 ) extends Transaction;
     bht_update_t bht_update_i;  // OUTPUT to DUT
-    ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o;    // INPUT from DUT
+    bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o;    // INPUT from DUT
 
     function automatic new;
 

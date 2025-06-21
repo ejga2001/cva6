@@ -76,7 +76,6 @@ module lbp #(
   bp_metadata_t metadata, update_metadata;
 
   assign index           = vpc_i[HISTORY_BITS-1:ROW_ADDR_BITS+OFFSET];
-  assign metadata.index  = index;
   assign update_metadata = bht_update_i.metadata;
   assign update_pc       = bht_update_i.pc[HISTORY_BITS-1:ROW_ADDR_BITS+OFFSET];
   if (CVA6Cfg.RVC) begin : gen_update_row_index
@@ -262,6 +261,7 @@ module lbp #(
             bht_prediction_o[i].taken = bht_ram_wdata_q[i*BRAM_WORD_BITS+(CVA6Cfg.LocalCtrBits-1)];
             //In any other case we can safely read from the RAM as data is available
           end else begin
+            metadata.index = lhr_ram_rdata_0[i*LHR_WORD_BITS+:LHR_WORD_BITS];
             bht_prediction_o[i].valid = bht_ram_rdata_0[i*BRAM_WORD_BITS+CVA6Cfg.LocalCtrBits];
             bht_prediction_o[i].taken = bht_ram_rdata_0[i*BRAM_WORD_BITS+(CVA6Cfg.LocalCtrBits-1)];
             bht_prediction_o[i].metadata = metadata;

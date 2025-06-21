@@ -11,48 +11,79 @@ module tb;
 
     localparam config_pkg::cva6_cfg_t CVA6Cfg = build_config_pkg::build_config(cva6_config_pkg::cva6_cfg);
 
+    localparam type bp_metadata_t = struct packed {
+        logic [CVA6Cfg.BHTIndexBits-1:0] index;
+    };
+
     localparam type bht_update_t = struct packed {
         logic                    valid;
         logic [CVA6Cfg.VLEN-1:0] pc;     // update at PC
         logic                    taken;
+        bp_metadata_t            metadata;
     };
 
-    localparam int unsigned NR_ENTRIES = 1024;
+    localparam type bht_prediction_t = struct packed {
+        logic                    valid;
+        logic                    taken;
+        bp_metadata_t            metadata;
+    };
+
+    localparam int unsigned NR_ENTRIES = CVA6Cfg.BHTEntries;
+
+    localparam int unsigned NR_ROWS = NR_ENTRIES / CVA6Cfg.INSTR_PER_FETCH;
 
     localparam CLOCK_PERIOD = 20ns;
 
-    localparam NCYCLES = 10;
+    localparam NCYCLES = 10000;
+
+    function automatic void preload_array(
+        tb_pkg::BHTShadow #(
+            .CVA6Cfg(CVA6Cfg),
+            .bht_update_t(bht_update_t),
+            .bht_prediction_t(bht_prediction_t),
+            .bp_metadata_t(bp_metadata_t),
+            .NR_ENTRIES(NR_ENTRIES)
+        ) bht_shadow
+    );
+        for (int i = 0; i < NR_ROWS; i++) begin
+            int nrand0 = $random();
+            int nrand1 = $random();
+            dut.gen_fpga_bht.gen_bht_ram[0].gen_async_ram.i_bht_ram.mem[i] = nrand0;
+            bht_shadow.set_data(i, 0, nrand0);
+            dut.gen_fpga_bht.gen_bht_ram[1].gen_async_ram.i_bht_ram.mem[i] = nrand1;
+            bht_shadow.set_data(i, 1, nrand1);
+        end
+    endfunction : preload_array
 
     // INPUTS
     logic clk_i;
     logic rst_ni;
     logic flush_bp_i;
     logic debug_mode_i;
-    bht_update_t bht_update_i;
 
     bht_frontend_if #(
-        .CVA6Cfg(CVA6Cfg)
+        .CVA6Cfg(CVA6Cfg),
+        .bht_update_t(bht_update_t),
+        .bht_prediction_t(bht_prediction_t)
     ) intf (
         clk_i,
         rst_ni
     );
-    mailbox drv_mbx = new;
-    event drv_done;
 
     Test #(
-        .CVA6Cfg(CVA6Cfg)
-    ) t = new(NCYCLES, intf);
-
-    tb_pkg::BHTShadow #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
+        .bht_prediction_t(bht_prediction_t),
+        .bp_metadata_t(bp_metadata_t),
         .NR_ENTRIES(NR_ENTRIES)
-    ) bht_shadow = new;
+    ) t = new(NCYCLES, intf);
 
     // DUT INSTANTIATION
     bht #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
+        .bht_prediction_t(bht_prediction_t),
+        .bp_metadata_t(bp_metadata_t),
         .NR_ENTRIES(NR_ENTRIES)
     ) dut (
         .clk_i,
@@ -60,7 +91,7 @@ module tb;
         .debug_mode_i,
         .flush_bp_i,
         .vpc_i(intf.vpc_i),
-        .bht_update_i(bht_update_i),
+        .bht_update_i(intf.bht_update_i),
         .bht_prediction_o(intf.bht_prediction_o)
     );
 
@@ -68,14 +99,19 @@ module tb;
     always #(CLOCK_PERIOD/2) clk_i = ~clk_i;
 
     initial begin
-        clk_i = 0;
+        debug_mode_i = 0;
+        flush_bp_i = 0;
+
+        clk_i = 1'b0;
         rst_ni = 1'b0;
+
+        preload_array(t.env.agent_frontend.scoreboard.bht_shadow);
 
         #(CLOCK_PERIOD) rst_ni = 1'b1;
 
         t.run();
+        #(CLOCK_PERIOD) $display("ALL TESTS PASSED");
 
-        // $display("INTERNAL = %b", dut.gen_fpga_bht.gen_bht_ram[0].gen_async_bht_ram.i_bht_ram.mem[0]);
         $finish();
     end
 

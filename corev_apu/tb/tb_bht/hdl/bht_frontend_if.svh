@@ -6,6 +6,8 @@
 `timescale 1ns/1ns
 interface bht_frontend_if #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
+    parameter type bht_update_t = logic,
+    parameter type bht_prediction_t = logic,
     parameter CLOCK_PERIOD = 20ns
 ) (
     input logic clk_i,
@@ -13,14 +15,16 @@ interface bht_frontend_if #(
 );
     // Virtual PC - CACHE
     logic [CVA6Cfg.VLEN-1:0] vpc_i;
-
+    // Update bht with resolved address - EXECUTE
+    bht_update_t bht_update_i;
     // Prediction from bht - FRONTEND
-    ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o;
+    bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o;
 
     clocking cb_drv @(posedge clk_i);
         default input #(CLOCK_PERIOD/2) output #0;
         input bht_prediction_o;
-        output vpc_i;
+        inout vpc_i;
+        inout bht_update_i;
     endclocking : cb_drv
 
 endinterface : bht_frontend_if

@@ -78,6 +78,7 @@ module frontend
         logic [CVA6Cfg.VLEN-1:0] pc;     // update at PC
         logic                    taken;
         bp_metadata_t            metadata;
+        logic                    mispredict;
     };
 
     localparam type btb_prediction_t = struct packed {
@@ -337,6 +338,7 @@ module frontend
     assign bht_update.pc = resolved_branch_i.pc;
     assign bht_update.taken = resolved_branch_i.is_taken;
     assign bht_update.metadata = resolved_branch_i.metadata;
+    assign bht_update.mispredict = is_mispredict;
     // only update mispredicted branches e.g. no returns from the RAS
     assign btb_update.valid = resolved_branch_i.valid
                             & resolved_branch_i.is_mispredict
@@ -587,6 +589,22 @@ module frontend
                     .vpc_i           (vpc_bht),
                     .bht_update_i    (bht_update),
                     .bht_prediction_o(bht_prediction)
+                );
+            end
+            config_pkg::TAGEBP: begin
+                tage #(
+                    .CVA6Cfg   (CVA6Cfg),
+                    .tage_metadata_t(bp_metadata_t),
+                    .tage_update_t(bht_update_t),
+                    .tage_prediction_t(bht_prediction_t)
+                ) i_tage (
+                    .clk_i,
+                    .rst_ni,
+                    .flush_bp_i      (flush_bp_i),
+                    .debug_mode_i,
+                    .vpc_i           (vpc_bht),
+                    .tage_update_i   (bht_update),
+                    .tage_prediction_o(bht_prediction)
                 );
             end
             default: begin

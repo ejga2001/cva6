@@ -4,20 +4,35 @@
  */
 
 class TransactionFrontend #(
-    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
+    parameter type bht_update_t = logic,
+    parameter type bht_prediction_t = logic
 ) extends Transaction;
-    AbstractInstruction #(
-        .CVA6Cfg(CVA6Cfg)
-    ) instr;
-    bit taken;
-    ariane_pkg::bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o;
+    // INPUTS
+    logic [CVA6Cfg.VLEN-1:0] vpc_i;
+    bht_update_t bht_update_i;
+
+    // OUTPUTS
+    bht_prediction_t [CVA6Cfg.INSTR_PER_FETCH-1:0] bht_prediction_o;
 
     function automatic new ();
-        taken = 0;
+
     endfunction : new
 
     function automatic void display (string name);
         super.display(name);
-        $display ("T=%0t %s vpc_i=0x%0h taken=%x bht_prediction_o=%x", $time, name, instr.get_vpc(), taken, bht_prediction_o);
+        $display("T=%0t %s", $time, name);
+        $display("Inputs:");
+        $display("\tvpc_i = 0x%0h", vpc_i);
+        $display("\tbht_update_i.valid = %x", bht_update_i.valid);
+        $display("\tbht_update_i.pc = 0x%0h", bht_update_i.pc);
+        $display("\tbht_update_i.taken = %x", bht_update_i.taken);
+        $display("\tbht_update_i.metadata.index = 0x%0h", bht_update_i.metadata);
+        $display("Outputs:");
+        for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
+            $display("\tbht_prediction_o[%0d].valid = %x", i, bht_prediction_o[i].valid);
+            $display("\tbht_prediction_o[%0d].taken = %x", i, bht_prediction_o[i].taken);
+            $display("\tbht_prediction_o[%0d].index = 0x%x", i, bht_prediction_o[i].metadata);
+        end
     endfunction : display
 endclass : TransactionFrontend

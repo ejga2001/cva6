@@ -54,6 +54,20 @@ module cva6
       logic                                        lbp_taken;
     },
 
+    localparam type bp_4_metadata_t = struct packed {
+      logic [CVA6Cfg.BHTIndexBits-1:0]              bht_index;
+      logic [CVA6Cfg.histBufferBits-1:0]            ghist;
+      logic [CVA6Cfg.pathHistBits-1:0]              phist;
+      logic                                         longest_match_valid;
+      logic                                         longest_match_taken;
+      logic [$clog2(CVA6Cfg.nTagHistoryTables)-1:0] longest_match_id;
+      logic                                         alt_valid;
+      logic                                         alt_taken;
+      logic [$clog2(CVA6Cfg.nTagHistoryTables)-1:0] alt_id;
+      logic [CVA6Cfg.nTagHistoryTables:1]           u_is_null;
+      logic                                         pseudo_new_alloc;
+    },
+
     // branchpredict scoreboard entry
     // this is the struct which we will inject into the pipeline to guide the various
     // units towards the correct branch decision and resolve

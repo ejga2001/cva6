@@ -5,6 +5,8 @@
 
 class InstructionStream #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
+    parameter type bht_prediction_t = logic,
+    parameter type bht_update_t = logic,
     parameter NR_ENTRIES = 1024,
     parameter P_COMPRESSED_INSTR = 50,
     parameter P_NOT_A_BRANCH = 75,
@@ -25,6 +27,10 @@ class InstructionStream #(
     local AbstractInstruction #(
         .CVA6Cfg(CVA6Cfg)
     ) stream;
+
+    local AbstractInstruction #(
+        .CVA6Cfg(CVA6Cfg)
+    ) q [$];
 
     int start_blocks [$], block_lengths [$];
 
@@ -166,95 +172,74 @@ class InstructionStream #(
         return stream_i;
     endfunction : create
 
-    /*function automatic void gen_instr_stream(
-        ref logic [CVA6Cfg.VLEN-1:0] instr_queue [$],
-        input AbstractInstruction #(
-            .CVA6Cfg(CVA6Cfg)
-        ) stream_i = null,
-        bit recursive = 0
-    );
-        automatic AbstractInstruction #(
-            .CVA6Cfg(CVA6Cfg)
-        ) instr;
+    function automatic void flush_instr_queue ();
+        q = {};
+    endfunction : flush_instr_queue
 
-        if (!recursive) begin
-            instr = stream;
-        end else begin
-            instr = stream_i;
-        end
-        while (instr) begin
-            instr_queue[$+1] = instr.get_vpc();
-            if (instr.is_branch()) begin
-                int p_taken;
-                void'(std::randomize(p_taken) with {
-                    p_taken inside {[0:100]};
-                });
-                if (p_taken < P_TAKEN)
-                    gen_instr_stream(instr_queue, instr.get_target_instr(), 1);
-            end
-            //$display("PC: %x", instr.get_vpc());
-            instr = instr.getNextInstr();
-        end
-    endfunction*/
-
-    function automatic TransactionFrontend #(
+    function automatic AbstractInstruction #(
         .CVA6Cfg(CVA6Cfg)
-    ) get_transaction (
+    ) get_next_instruction (
         bit first_call
     );
-        static AbstractInstruction #(
-            .CVA6Cfg(CVA6Cfg)
-        ) q [$];
         automatic AbstractInstruction #(
             .CVA6Cfg(CVA6Cfg)
         ) instr;
-        automatic TransactionFrontend #(
-            .CVA6Cfg(CVA6Cfg)
-        ) transaction = new;
 
         if (first_call)
             q.push_back(stream);
 
         if (q.size() > 0) begin
+            foreach(q[i])
+                $display("INSTR_QUEUE[%0d] = %x", i, q[i].get_vpc());
             instr = q.pop_front();
-            transaction.instr = instr;
-            if (instr.is_branch()) begin
-                int p_taken;
-                void'(std::randomize(p_taken) with {
-                    p_taken inside {[0:100]};
-                });
-                if (instr.is_conditional()) begin
-                    if (p_taken < P_COND_TAKEN) begin
-                        transaction.taken = 1;
-                        if (instr.getNextInstr() != null) begin
-                            q.push_back(instr.getNextInstr());
-                        end
-                        if (instr.get_target_instr() != null) begin
-                            q.push_front(instr.get_target_instr());
-                        end
-                    end else begin
-                        if (instr.getNextInstr() != null)
-                            q.push_front(instr.getNextInstr());
-                    end
-                end else begin
-                    if (p_taken < P_LOOP_TAKEN) begin
-                        transaction.taken = 1;
-                        q = {};
-                        if (instr.get_target_instr() != null) begin
-                            q.push_front(instr.get_target_instr());
-                        end
-                    end else begin
-                        if (instr.getNextInstr() != null)
-                            q.push_front(instr.getNextInstr());
-                    end
-                end
-            end else begin
-                if (instr.getNextInstr() != null)
-                    q.push_front(instr.getNextInstr());
-            end
-            return transaction;
+            return instr;
         end
         return null;
+    endfunction
+
+    function automatic is_taken(
+        AbstractInstruction #(
+            .CVA6Cfg(CVA6Cfg)
+        ) instr
+    );
+        if (instr.is_branch()) begin
+            int p_taken;
+            void'(std::randomize(p_taken) with {
+                p_taken inside {[0:100]};
+            });
+            return (instr.is_conditional() ? (p_taken < P_COND_TAKEN) : (p_taken < P_LOOP_TAKEN));
+        end else
+            return 0;
+    endfunction : is_taken
+
+    function automatic bit change_ctrl_flow (
+        AbstractInstruction #(
+            .CVA6Cfg(CVA6Cfg)
+        ) instr,
+        bit valid,
+        bit taken
+    );
+        if (!instr.is_branch() || !valid || !taken) begin
+            if (instr.getNextInstr() != null)
+                q.push_front(instr.getNextInstr()); // PC + 4
+            return 0;
+        end
+        if (instr.is_conditional()) begin
+            if (instr.getNextInstr() != null) begin
+                q.push_back(instr.getNextInstr());  // PC + 4
+            end
+            if (instr.get_target_instr() != null) begin
+                q.push_front(instr.get_target_instr()); // Target address
+            end
+        end else begin
+            $display("HEYY");
+            flush_instr_queue();
+            if (instr.get_target_instr() != null) begin
+                q.push_front(instr.get_target_instr()); // Target address
+                $display("TARGET_ADDRESS = %x", instr.get_target_instr().get_vpc());
+            end
+        end
+        return 1;
     endfunction
 
     function automatic void print(

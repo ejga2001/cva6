@@ -8,7 +8,7 @@
 // Original Author: Jean-Roch COULON - Thales
 
 `ifndef BRANCH_PRED_IMPL
-  `define BRANCH_PRED_IMPL 1
+  `define BRANCH_PRED_IMPL 4
 `endif
 
 `ifndef BHT_ENTRIES
@@ -45,6 +45,60 @@
 
 `ifndef LOCAL_CTR_BITS
   `define LOCAL_CTR_BITS 2
+`endif
+
+// TAGE predictor
+
+`ifndef POWER
+    `define POWER 1
+`endif
+
+`ifndef N_HISTORY_TABLES
+    `define N_HISTORY_TABLES 6
+`endif
+
+`ifndef HIST_LENGTHS
+    `define HIST_LENGTHS {32'd2, 32'd4, 32'd8, 32'd16, 32'd32, 32'd64}
+`endif
+
+`ifndef TAG_TABLE_TAG_WIDTHS
+    `define TAG_TABLE_TAG_WIDTHS {32'd7, 32'd7, 32'd8, 32'd8, 32'd9, 32'd9}
+`endif
+
+`ifndef TAG_TABLE_SIZES
+    `define TAG_TABLE_SIZES {32'd256, 32'd256, 32'd256, 32'd512, 32'd512, 32'd512}
+`endif
+
+`ifndef TAG_TABLE_COUNTER_BITS
+    `define TAG_TABLE_COUNTER_BITS 3
+`endif
+
+`ifndef TAG_TABLE_UBITS
+    `define TAG_TABLE_UBITS 2
+`endif
+
+`ifndef HIST_BUFFER_BITS
+    `define HIST_BUFFER_BITS 256
+`endif
+
+`ifndef PATH_HIST_BITS
+    `define PATH_HIST_BITS 16
+`endif
+
+`ifndef U_RESET_PERIOD
+    `define U_RESET_PERIOD 2048   // 2^11
+`endif
+
+`ifndef NUM_USE_ALT_ON_NA
+    `define NUM_USE_ALT_ON_NA 1
+`endif
+
+`ifndef INITIAL_RST_CTR_VALUE
+    `define INITIAL_RST_CTR_VALUE 1024   // 2^10
+`endif
+
+`ifndef USE_ALT_ON_NA_BITS
+    `define USE_ALT_ON_NA_BITS 4
 `endif
 
 package cva6_config_pkg;
@@ -110,6 +164,21 @@ package cva6_config_pkg;
   localparam CVA6ConfigChoiceCtrBits = `CHOICE_CTR_BITS;
   localparam CVA6ConfigGlobalCtrBits = `GLOBAL_CTR_BITS;
   localparam CVA6ConfigLocalCtrBits = `LOCAL_CTR_BITS;
+
+  // TAGE predictor
+  localparam CVA6ConfigPower = `POWER;
+  localparam CVA6ConfigNTagHistoryTables = `N_HISTORY_TABLES;
+  localparam logic [`N_HISTORY_TABLES-1:0][31:0] CVA6ConfigHistLengths = (`N_HISTORY_TABLES*32)'(`HIST_LENGTHS);
+  localparam logic [`N_HISTORY_TABLES-1:0][31:0] CVA6ConfigTagTableTagWidths = (`N_HISTORY_TABLES*32)'(`TAG_TABLE_TAG_WIDTHS);
+  localparam logic [`N_HISTORY_TABLES-1:0][31:0] CVA6ConfigTagTableSizes = (`N_HISTORY_TABLES*32)'(`TAG_TABLE_SIZES);
+  localparam CVA6ConfigTagTableCounterBits = `TAG_TABLE_COUNTER_BITS;
+  localparam CVA6ConfigTagTableUBits = `TAG_TABLE_UBITS;
+  localparam CVA6ConfigHistBufferBits = `HIST_BUFFER_BITS;
+  localparam CVA6ConfigPathHistBits = `PATH_HIST_BITS;
+  localparam CVA6ConfigUResetPeriod = `U_RESET_PERIOD;
+  localparam CVA6ConfigNumUseAltOnNa = `NUM_USE_ALT_ON_NA;
+  localparam CVA6ConfigInitialRstCtrValue = `INITIAL_RST_CTR_VALUE;
+  localparam CVA6ConfigUseAltOnNaBits = `USE_ALT_ON_NA_BITS;
 
   localparam CVA6ConfigTvalEn = 1;
 
@@ -215,6 +284,20 @@ package cva6_config_pkg;
       BimodalCtrBits: unsigned'(CVA6ConfigBimodalCtrBits),
       ChoiceCtrBits: unsigned'(CVA6ConfigChoiceCtrBits),
       GlobalCtrBits: unsigned'(CVA6ConfigGlobalCtrBits),
-      LocalCtrBits: unsigned'(CVA6ConfigLocalCtrBits)
+      LocalCtrBits: unsigned'(CVA6ConfigLocalCtrBits),
+      // TAGE predictor
+      power: unsigned'(CVA6ConfigPower),
+      nTagHistoryTables: unsigned'(CVA6ConfigNTagHistoryTables),
+      histLengths: (`N_HISTORY_TABLES*32)'(CVA6ConfigHistLengths),
+      tagTableTagWidths: (`N_HISTORY_TABLES*32)'(CVA6ConfigTagTableTagWidths),
+      tagTableSizes: (`N_HISTORY_TABLES*32)'(CVA6ConfigTagTableSizes),
+      tagTableCounterBits: unsigned'(CVA6ConfigTagTableCounterBits),
+      tagTableUBits: unsigned'(CVA6ConfigTagTableUBits),
+      histBufferBits: unsigned'(CVA6ConfigHistBufferBits),
+      pathHistBits: unsigned'(CVA6ConfigPathHistBits),
+      uResetPeriod: unsigned'(CVA6ConfigUResetPeriod),
+      numUseAltOnNa: unsigned'(CVA6ConfigNumUseAltOnNa),
+      initialRstCtrValue: unsigned'(CVA6ConfigInitialRstCtrValue),
+      useAltOnNaBits: unsigned'(CVA6ConfigUseAltOnNaBits)
   };
 endpackage

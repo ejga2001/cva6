@@ -5,15 +5,10 @@
 
 module tage_component #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = build_config_pkg::build_config(cva6_config_pkg::cva6_cfg),
+    parameter TABLE_IDX = 1,
     parameter TAG_TABLE_SIZE = 512,
     parameter TAG_WIDTH = 5,
     parameter HISTORY_LENGTH = 9,
-    parameter TABLE_IDX = 1,
-    parameter type tage_entry_t = struct packed {
-        logic                                          valid;
-        logic signed [CVA6Cfg.tagTableCounterBits-1:0] ctr;
-        logic [TAG_WIDTH-1:0]                          tag;
-    },
     parameter type tage_component_pred_t = logic,
     parameter type tage_component_update_t = logic
 ) (
@@ -29,14 +24,16 @@ module tage_component #(
     input logic [CVA6Cfg.pathHistBits-1:0] pathHist_i,
     // Update TAGE component with resolved address - EXECUTE
     input tage_component_update_t tage_component_update_i,
-    // Update TAGE component with ghist - FTQ
+    // Update TAGE component with ghist - EXECUTE
     input logic [HISTORY_LENGTH-1:0] update_ghist_i,
-    // Update TAGE component with phist - FTQ
+    // Update TAGE component with phist - EXECUTE
     input logic [CVA6Cfg.pathHistBits-1:0] update_phist_i,
     // TAGE table prediction
     output tage_component_pred_t [CVA6Cfg.INSTR_PER_FETCH-1:0] tage_pred_o,
     // U counter null
-    output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] u_is_null_o
+    output logic [CVA6Cfg.INSTR_PER_FETCH-1:0] u_is_null_o,
+    // Is this TAGE component resetting the u bit?
+    output logic doing_u_rst_o
 );
     // the last bit is always zero, we don't need it for indexing
     localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
@@ -49,6 +46,11 @@ module tage_component #(
     localparam PREDICTION_BITS = $clog2(NR_ROWS) + OFFSET + ROW_ADDR_BITS;
     // number of bits to index the table
     localparam IDX_WIDTH = $clog2(NR_ROWS);
+    localparam type tage_entry_t = struct packed {
+        logic                                          valid;
+        logic signed [CVA6Cfg.tagTableCounterBits-1:0] ctr;
+        logic [TAG_WIDTH-1:0]                          tag;
+    };
     // number of bits of a tagged entry
     localparam TAGE_ENTRY_BITS = $bits(tage_entry_t);
     // number of bits of a TAGE component prediction
@@ -61,10 +63,9 @@ module tage_component #(
         localparam TAG_TABLE_SIZE_BITS = $clog2(TAG_TABLE_SIZE);
         localparam A2_SHAMT = (TABLE_IDX >= TAG_TABLE_SIZE_BITS) ? (TABLE_IDX - TAG_TABLE_SIZE_BITS) : (TAG_TABLE_SIZE_BITS - TABLE_IDX);
 
-        logic [SIZE-1:0] A;
-        logic [TAG_TABLE_SIZE_BITS-1:0] A1, A2;
+        logic [31:0] A, A1, A2;
 
-        A = pathHist_i[SIZE-1:0];
+        A = 32'(pathHist_i[SIZE-1:0]);
         A1 = (A & (TAG_TABLE_SIZE - 1));
         A2 = (A >> TAG_TABLE_SIZE_BITS);
         A2 = ((A2 << TABLE_IDX) & (TAG_TABLE_SIZE - 1)) + (A2 >> A2_SHAMT);
@@ -75,41 +76,39 @@ module tage_component #(
     endfunction
 
     function automatic logic [IDX_WIDTH-1:0] compute_folded_hist_idx(
-        input logic [CVA6Cfg.histBufferSize-1:0] hist_i
+        input logic [HISTORY_LENGTH-1:0] hist_i
     );
         localparam N_CHUNKS = (HISTORY_LENGTH + IDX_WIDTH - 1) / IDX_WIDTH;
+        localparam REMAINDER = HISTORY_LENGTH - ((N_CHUNKS-1)*IDX_WIDTH);
 
         logic [IDX_WIDTH-1:0] result;
-        logic [IDX_WIDTH-1:0] current_chunk;
 
         result = '0;
 
-        for (int i = 0; i < N_CHUNKS; i++) begin
-            chunk_start = i * IDX_WIDTH;
-            chunk_end = (i+1)*IDX_WIDTH < HISTORY_LENGTH ? (i+1)*IDX_WIDTH-1 : HISTORY_LENGTH-1;
-
-            result = result ^ hist[chunk_end:chunk_start];
+        for (int i = 0; i < N_CHUNKS - 1; i++) begin
+            result = result ^ hist_i[i*IDX_WIDTH +: IDX_WIDTH];
         end
+
+        result[REMAINDER-1:0] = result[REMAINDER-1:0] ^ hist_i[HISTORY_LENGTH-1 -: REMAINDER];
 
         return result;
     endfunction : compute_folded_hist_idx
 
     function automatic logic [TAG_WIDTH-1:0] compute_folded_hist_tag(
-        input logic [CVA6Cfg.histBufferSize-1:0] hist_i
+        input logic [HISTORY_LENGTH-1:0] hist_i
     );
         localparam N_CHUNKS = (HISTORY_LENGTH + TAG_WIDTH - 1) / TAG_WIDTH;
+        localparam REMAINDER = HISTORY_LENGTH - ((N_CHUNKS-1)*TAG_WIDTH);
 
         logic [TAG_WIDTH-1:0] result;
-        logic [TAG_WIDTH-1:0] current_chunk;
 
         result = '0;
 
-        for (int i = 0; i < N_CHUNKS; i++) begin
-            chunk_start = i * TAG_WIDTH;
-            chunk_end = (i+1)*TAG_WIDTH < HISTORY_LENGTH ? (i+1)*TAG_WIDTH-1 : HISTORY_LENGTH-1;
-
-            result = result ^ hist[chunk_end:chunk_start];
+        for (int i = 0; i < N_CHUNKS - 1; i++) begin
+            result = result ^ hist_i[i*TAG_WIDTH +: TAG_WIDTH];
         end
+
+        result[REMAINDER-1:0] = result[REMAINDER-1:0] ^ hist_i[(HISTORY_LENGTH-1) -: REMAINDER];
 
         return result;
     endfunction : compute_folded_hist_tag
@@ -127,31 +126,31 @@ module tage_component #(
             ^ (pc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET] >> (SHAMT + 1))
             ^ compute_folded_hist_idx(gHist_i)
             ^ F(pathHist_i);
-    endfunction
+    endfunction : hpc
 
     function automatic logic [TAG_WIDTH-1:0] htag(
         input logic [CVA6Cfg.VLEN-1:0] vpc_i,
         input logic [HISTORY_LENGTH-1:0] gHist_i
     );
         return vpc_i[(ROW_ADDR_BITS+OFFSET)+:TAG_WIDTH] ^ compute_folded_hist_tag(gHist_i);
-    endfunction
+    endfunction : htag
 
     function automatic logic [CVA6Cfg.tagTableUBits-1:0] update_u(
         input logic [CVA6Cfg.tagTableUBits-1:0] u,
         input logic mispredict,
         input logic update_u_en,
-        input logic doing_rst_us
+        input logic do_rst_us
     );
         logic [CVA6Cfg.tagTableUBits-1:0] u_updated;
 
-        if (doing_rst_us) begin
+        if (do_rst_us) begin
             u_updated = {1'b0, u[CVA6Cfg.tagTableUBits-1:1]};
         end else if (update_u_en) begin
             if (mispredict) begin
                 if (u > 0)
                     u_updated = u - 1;
                 else
-                    u_updated = 2'b00;
+                    u_updated = (CVA6Cfg.tagTableUBits)'(0);
             end else begin
                 if (u < ((1 << CVA6Cfg.tagTableUBits) - 1))
                     u_updated = u + 1;
@@ -166,25 +165,20 @@ module tage_component #(
 
     function automatic logic signed [CVA6Cfg.tagTableCounterBits-1:0] update_ctr(
         input logic signed [CVA6Cfg.tagTableCounterBits-1:0] ctr,
-        input logic taken,
-        input logic update_ctr_en
+        input logic taken
     );
         logic signed [CVA6Cfg.tagTableCounterBits-1:0] ctr_updated;
 
-        if (update_ctr_en) begin
-            if (taken) begin
-                if (ctr < ((1 << (CVA6Cfg.tagTableCounterBits - 1)) - 1))
-                    ctr_updated = ctr - 1;
-                else
-                    ctr_updated = ctr;
-            end else begin
-                if (ctr > -(1 << (CVA6Cfg.tagTableCounterBits - 1)))
-                    ctr_updated = ctr + 1;
-                else
-                    ctr_updated = ctr;
-            end
+        if (taken) begin
+            if (ctr < ((1 << (CVA6Cfg.tagTableCounterBits - 1)) - 1))
+                ctr_updated = ctr + 1;
+            else
+                ctr_updated = ctr;
         end else begin
-            ctr_updated = ctr;
+            if (ctr > -(1 << (CVA6Cfg.tagTableCounterBits - 1)))
+                ctr_updated = ctr - 1;
+            else
+                ctr_updated = ctr;
         end
 
         return ctr_updated;
@@ -216,9 +210,10 @@ module tage_component #(
     logic [CVA6Cfg.INSTR_PER_FETCH-1:0][CVA6Cfg.tagTableUBits-1:0] us_entry_updated;
 
     // Registers for handling graceful reset of U counters
-    logic doing_rst_us, do_rst_us_q, do_rst_us_d;
-    logic [IDX_WIDTH-1:0] u_index, rst_u_index_q, rst_u_index_d;
-    logic [ROW_INDEX_BITS-1:0] u_row_index, rst_u_row_index_q, rst_u_row_index_d;
+    logic do_rst_us;
+    logic [IDX_WIDTH-1:0] u_index;
+    logic [IDX_WIDTH+ROW_INDEX_BITS:0] rst_u_index_q, rst_u_index_d;
+    logic [ROW_INDEX_BITS-1:0] u_row_index;
 
     for (genvar i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin : gen_tage_table_ram
         AsyncThreePortRam #(
@@ -261,8 +256,8 @@ module tage_component #(
             tage_pred_o[i].valid = tage_rdata_0[i*TAGE_ENTRY_BITS+TAGE_ENTRY_BITS-1];
             tage_pred_o[i].taken = ~tage_rdata_0[(i*TAGE_ENTRY_BITS+TAG_WIDTH+CVA6Cfg.tagTableCounterBits-1)];
             tage_pred_o[i].tag_match = tage_rdata_0[i*TAGE_ENTRY_BITS+:TAG_WIDTH] == idx_tag;
-            tage_pred_o[i].pseudo_new_alloc = tage_rdata_0[(i*TAGE_ENTRY_BITS+TAG_WIDTH)+:CVA6Cfg.tagTableCounterBits] == 0
-                || tage_rdata_0[(i*TAGE_ENTRY_BITS+TAG_WIDTH)+:CVA6Cfg.tagTableCounterBits] == -1;
+            tage_pred_o[i].pseudo_new_alloc = (tage_rdata_0[(i*TAGE_ENTRY_BITS+TAG_WIDTH)+:CVA6Cfg.tagTableCounterBits] == 0)
+                || (tage_rdata_0[(i*TAGE_ENTRY_BITS+TAG_WIDTH)+:CVA6Cfg.tagTableCounterBits] == -1);
         end
     end
 
@@ -272,6 +267,8 @@ module tage_component #(
             u_is_null_o[i] = us_rdata_0[i*CVA6Cfg.tagTableUBits+:CVA6Cfg.tagTableUBits] == 0;
         end
     end
+
+    assign doing_u_rst_o = ~rst_u_index_q[IDX_WIDTH+ROW_INDEX_BITS];
 
     // Update TAGE
     assign update_index = hpc(tage_component_update_i.pc, update_ghist_i, update_phist_i);
@@ -284,12 +281,12 @@ module tage_component #(
 
     always_comb begin : gen_u_index
         // Check if it's necessary to partially reset the us table
-        doing_rst_us = do_rst_us_q & ~tage_component_update_i.alloc;
+        do_rst_us = ~rst_u_index_q[IDX_WIDTH+ROW_INDEX_BITS] & ~tage_component_update_i.alloc;
 
         // Compute indexes
-        if (doing_rst_us) begin
-            u_index = rst_u_index_q;
-            u_row_index = rst_u_row_index_q;
+        if (do_rst_us) begin
+            u_index = rst_u_index_q[ROW_INDEX_BITS +: IDX_WIDTH];
+            u_row_index = rst_u_index_q[ROW_INDEX_BITS-1:0];
         end else begin
             u_index = update_index;
             u_row_index = update_row_index;
@@ -297,100 +294,91 @@ module tage_component #(
     end
 
     always_comb begin : update_tage_component
-        // Update TAGE entry
+        tage_read_address_1 = '0;
+        tage_entry_updated = '0;
+        tage_we = '0;
+        tage_write_address = '0;
+        tage_wdata = '0;
+        us_read_address_1 = '0;
+        us_entry_updated = '0;
+        us_we = '0;
+        us_write_address = '0;
+        us_wdata = '0;
+        rst_u_index_d = rst_u_index_q;
         if (tage_component_update_i.valid) begin
-            for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
+            for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; ++i) begin
                 if (update_row_index == ROW_INDEX_BITS'(i)) begin
-                    // Read from TAGE table's BRAM
-                    tage_read_address_1[i*IDX_WIDTH+:IDX_WIDTH] = update_index;
-                    tage_entry_updated[i] = tage_rdata_1[i*TAGE_ENTRY_BITS+:TAGE_ENTRY_BITS];
                     tage_entry_updated[i].valid = 1'b1;
-                    if (tage_component_update_i.alloc) begin
-                        tage_entry_updated[i].tag = update_tag[i];
-                        tage_entry_updated[i].ctr = tage_component_update_i.taken ? 0 : -1;
-                    end
-
-                    // Update prediction counter
-                    if (tage_component_update_i.update_ctr_en) begin
-                        tage_entry_updated[i].ctr = update_ctr(tage_entry_updated[i].ctr,
-                            tage_component_update_i.taken,
-                            tage_component_update_i.update_ctr_en);
-                    end
-
-                    // Write back to the BRAM
-                    tage_we[i] = tage_component_update_i.valid
-                        | tage_component_update_i.update_ctr_en
-                        | tage_component_update_i.alloc;
+                    tage_we[i] = 1'b1;
                     tage_write_address[i*IDX_WIDTH+:IDX_WIDTH] = update_index;
-                    tage_wdata[i*TAGE_ENTRY_BITS+:TAGE_ENTRY_BITS] = tage_entry_updated[i];
-                end else begin
-                    update_tag[i] = TAG_WIDTH'(0);
-                    tage_read_address_1[i*IDX_WIDTH+:IDX_WIDTH] = IDX_WIDTH'(1'b0);
-                    tage_entry_updated[i] = TAGE_ENTRY_BITS'(1'b0);
-                    tage_we[i] = 1'b0;
-                    tage_write_address[i*IDX_WIDTH+:IDX_WIDTH] = IDX_WIDTH'(1'b0);
-                    tage_wdata[i*TAGE_ENTRY_BITS+:TAGE_ENTRY_BITS] = TAGE_ENTRY_BITS'(1'b0);
-                end
-            end
-            // Update U table entry
-            for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
-                if (u_row_index == ROW_ADDR_BITS'(i)) begin
-                    // Read from us table's BRAM
-                    us_read_address_1[i*IDX_WIDTH+:IDX_WIDTH] = u_index;
-                    if (tage_component_update_i.alloc) begin
-                        us_entry_updated[i] = '0;
-                    end else begin
-                        us_entry_updated[i] = us_rdata_1[i*CVA6Cfg.tagTableUBits+:CVA6Cfg.tagTableUBits];
-                    end
-
-                    // Update useful counter
-                    us_entry_updated[i] = update_u(us_entry_updated[i],
-                        tage_component_update_i.mispredict,
-                        tage_component_update_i.update_u_en,
-                        doing_rst_us);
-
-                    // Write back to the BRAM
-                    us_we[i] = tage_component_update_i.update_u_en | tage_component_update_i.alloc | doing_rst_us;
+                    us_we[i] = tage_component_update_i.update_u_en | tage_component_update_i.alloc | do_rst_us;
                     us_write_address[i*IDX_WIDTH+:IDX_WIDTH] = u_index;
-                    us_wdata[i*CVA6Cfg.tagTableUBits+:CVA6Cfg.tagTableUBits] = us_entry_updated[i];
-                end else begin
-                    us_read_address_1[i*IDX_WIDTH+:IDX_WIDTH] = IDX_WIDTH'(1'b0);
-                    us_entry_updated[i] = CVA6Cfg.tagTableUBits'(1'b0);
-                    us_we[i] = 1'b0;
-                    us_write_address[i*IDX_WIDTH+:IDX_WIDTH] = IDX_WIDTH'(1'b0);
-                    us_wdata[i*CVA6Cfg.tagTableUBits+:CVA6Cfg.tagTableUBits] = CVA6Cfg.tagTableUBits'(1'b0);
                 end
             end
-            // Update do_rst_u, rst_u_index and rst_u_row_index
-            rst_u_row_index_d = rst_u_row_index_q + doing_rst_us;
-            rst_u_index_d = rst_u_index_q + ((rst_u_row_index_d == 0) ? IDX_WIDTH'(doing_rst_us) : IDX_WIDTH'(1'b0));
-            do_rst_us_d = (rst_u_index_d != 0) | tage_component_update_i.rst_us;
+        end else if (do_rst_us) begin
+            for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; ++i) begin
+                if (update_row_index == ROW_INDEX_BITS'(i)) begin
+                    us_we[i] = 1'b1;
+                    us_write_address[i*IDX_WIDTH+:IDX_WIDTH] = u_index;
+                end
+            end
+        end
+        // Update TAGE entry
+        for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
+            if (update_row_index == ROW_INDEX_BITS'(i)) begin
+                // Read from TAGE table's BRAM
+                tage_read_address_1[i*IDX_WIDTH+:IDX_WIDTH] = update_index;
+                tage_entry_updated[i].ctr = tage_rdata_1[(i*TAGE_ENTRY_BITS+TAG_WIDTH) +: CVA6Cfg.tagTableCounterBits];
+                tage_entry_updated[i].tag = tage_rdata_1[i*TAGE_ENTRY_BITS +: TAG_WIDTH];
+
+                // Update prediction counter
+                if (tage_component_update_i.alloc) begin
+                    tage_entry_updated[i].tag = update_tag;
+                    tage_entry_updated[i].ctr = tage_component_update_i.taken ? 0 : -1;
+                end else begin
+                    tage_entry_updated[i].ctr = update_ctr(tage_entry_updated[i].ctr, tage_component_update_i.taken);
+                end
+
+                // Write back to BRAM
+                tage_wdata[i*TAGE_ENTRY_BITS+:TAGE_ENTRY_BITS] = tage_entry_updated[i];
+            end
+        end
+        // Update U table entry
+        for (int i = 0; i < CVA6Cfg.INSTR_PER_FETCH; i++) begin
+            if (u_row_index == ROW_ADDR_BITS'(i)) begin
+                // Read from us table's BRAM
+                us_read_address_1[i*IDX_WIDTH+:IDX_WIDTH] = u_index;
+                us_entry_updated[i] = us_rdata_1[i*CVA6Cfg.tagTableUBits+:CVA6Cfg.tagTableUBits];
+
+                // Update useful counter
+                if (tage_component_update_i.alloc) begin
+                    us_entry_updated[i] = '0;
+                end else begin
+                    us_entry_updated[i] = update_u(us_entry_updated[i],
+                                                   tage_component_update_i.mispredict,
+                                                   tage_component_update_i.update_u_en,
+                                                   do_rst_us);
+                end
+
+                // Write back to the BRAM
+                us_wdata[i*CVA6Cfg.tagTableUBits+:CVA6Cfg.tagTableUBits] = us_entry_updated[i];
+            end
+        end
+        // Update rst_u_index and rst_u_row_index
+        if (tage_component_update_i.rst_us & rst_u_index_q[IDX_WIDTH+ROW_INDEX_BITS]) begin
+            rst_u_index_d = '0;
+        end else if (do_rst_us) begin
+            rst_u_index_d = rst_u_index_q + 1; 
         end else begin
-            tage_read_address_1 = '0;
-            tage_entry_updated = '0;
-            tage_we = '0;
-            tage_write_address = '0;
-            tage_wdata = '0;
-            us_read_address_1 = '0;
-            us_entry_updated = '0;
-            us_we = '0;
-            us_write_address = '0;
-            us_wdata = '0;
-            rst_u_row_index_d = rst_u_row_index_q;
             rst_u_index_d = rst_u_index_q;
-            do_rst_us_d = do_rst_us_q;
         end
     end
 
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (!rst_ni) begin
-            rst_u_index_q <= '0;
-            rst_u_row_index_q <= '0;
-            do_rst_us_q <= '0;
+            rst_u_index_q <= {1'b1, {(IDX_WIDTH+ROW_INDEX_BITS){1'b0}}};
         end else begin
             rst_u_index_q <= rst_u_index_d;
-            rst_u_row_index_q <= rst_u_row_index_d;
-            do_rst_us_q <= do_rst_us_d;
         end
     end
 endmodule

@@ -196,6 +196,27 @@ package build_config_pkg;
     cfg.GlobalCtrBits = CVA6Cfg.GlobalCtrBits;
     cfg.LocalCtrBits = CVA6Cfg.LocalCtrBits;
 
+    // TAGE predictor implementation
+    cfg.power = CVA6Cfg.power;
+    cfg.nTagHistoryTables = CVA6Cfg.nTagHistoryTables;
+    for (int i=0; i < CVA6Cfg.nTagHistoryTables; ++i) begin
+      cfg.histLengths[i] = CVA6Cfg.histLengths[CVA6Cfg.nTagHistoryTables-(i+1)];
+    end
+    for (int i=0; i < CVA6Cfg.nTagHistoryTables; ++i) begin
+      cfg.tagTableTagWidths[i] = CVA6Cfg.tagTableTagWidths[CVA6Cfg.nTagHistoryTables-(i+1)];
+    end
+    for (int i=0; i < CVA6Cfg.nTagHistoryTables; ++i) begin
+      cfg.tagTableSizes[i] = CVA6Cfg.tagTableSizes[CVA6Cfg.nTagHistoryTables-(i+1)] * (1 << (CVA6Cfg.power-1));
+    end
+    cfg.tagTableCounterBits = CVA6Cfg.tagTableCounterBits;
+    cfg.tagTableUBits = CVA6Cfg.tagTableUBits;
+    cfg.histBufferBits = CVA6Cfg.histBufferBits;
+    cfg.pathHistBits = CVA6Cfg.pathHistBits;
+    cfg.uResetPeriod = CVA6Cfg.uResetPeriod;
+    cfg.numUseAltOnNa = CVA6Cfg.numUseAltOnNa;
+    cfg.initialRstCtrValue = CVA6Cfg.initialRstCtrValue;
+    cfg.useAltOnNaBits = CVA6Cfg.useAltOnNaBits;
+
     return cfg;
   endfunction
 

@@ -6,8 +6,8 @@
 virtual class AbstractInstruction #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty
 );
-    protected logic [CVA6Cfg.VLEN-1:0] vpc;
-    protected bit rvc;
+    logic [CVA6Cfg.VLEN-1:0] vpc;
+    bit rvc;
 
     pure virtual function automatic bit is_branch();
 

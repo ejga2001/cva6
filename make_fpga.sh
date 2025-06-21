@@ -2,11 +2,13 @@
 
 declare -A ALL_CONFIGS
 
-BRANCH_PRED_IMPL_NAMES=("bht" "gbp" "lbp" "tournament")
+#BRANCH_PRED_IMPL_NAMES=("bht" "gbp" "lbp" "tournament" "tage")
+BRANCH_PRED_IMPL_NAMES=("tage")
 ALL_CONFIGS["bht"]="8192:3 16384:3 32768:3 65536:3 131072:3"
 ALL_CONFIGS["gbp"]="8192:3 16384:3 32768:3 65536:3 131072:3"
 ALL_CONFIGS["lbp"]="4096:2048:1 4096:4096:3 8192:8192:2 16384:16384:1 65536:16384:3"
 ALL_CONFIGS["tournament"]="1024:2048:4096:1024 2048:8192:4096:2048 2048:16384:16384:2048 8192:8192:32768:8192 8192:8192:16384:32768"
+ALL_CONFIGS["tage"]="4096:1:2048" #8192:2:2048 16384:3:2048 32768:4:2048 65536:5:2048"
 
 export BOARD=$1
 export XILINX_PART=$2
@@ -161,10 +163,45 @@ generate_bitstream_tournament() {
     rm -Rf $fpga_tmp
 }
 
+generate_bitstream_tage() {
+  impl_name=$1
+  BHT_ENTRIES=$(echo "$2" | cut -d ":" -f1,1)
+  POWER=$(echo "$2" | cut -d ":" -f2,2)
+  UBIT_PERIOD=$(echo "$2" | cut -d ":" -f3,3)
+  fpga_tmp=$(mktemp -d)
+
+  cp -Rf ./ $fpga_tmp/
+
+  make -C $fpga_tmp/corev_apu/fpga bit_${impl_name} BOARD=$BOARD \
+                                 XILINX_PART=$XILINX_PART \
+                                 XILINX_BOARD=$XILINX_BOARD \
+                                 CLK_PERIOD_NS=$CLK_PERIOD_NS \
+                                 BRANCH_PRED_IMPL=4 \
+                                 BHT_ENTRIES=${BHT_ENTRIES} \
+                                 BHT_CTR_BITS=3 \
+                                 POWER=${POWER} \
+                                 UBIT_PERIOD=${UBIT_PERIOD}
+
+  if [ $? -ne 0 ]; then
+      echo "Error: MAKE command failed for BRANCH_PRED_IMPL=${impl_name}"
+      rm -Rf $fpga_tmp
+      exit 1
+  fi
+
+  suffix_name="4_bimodal=${BHT_ENTRIES}_power=${POWER}_ubitperiod=${UBIT_PERIOD}"
+
+  cp -Rf $fpga_tmp/corev_apu/fpga/work-fpga/ariane_xilinx.bit corev_apu/fpga/bitstreams/ariane_xilinx_${suffix_name}.bit
+  cp -Rf $fpga_tmp/corev_apu/fpga/reports/* corev_apu/fpga/reports
+  cp -Rf $fpga_tmp/corev_apu/fpga/ariane.xpr corev_apu/fpga/xilinx_projects/ariane_${suffix_name}.xpr
+  cp -Rf $fpga_tmp/corev_apu/fpga/vivado.log corev_apu/fpga/logs/vivado_${suffix_name}.log
+  rm -Rf $fpga_tmp
+}
+
 export -f generate_bitstream_bht
 export -f generate_bitstream_gbp
 export -f generate_bitstream_lbp
 export -f generate_bitstream_tournament
+export -f generate_bitstream_tage
 
 source "/home/enriquejga/Xilinx/Vivado/2018.2/settings64.sh"
 

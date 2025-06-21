@@ -145,6 +145,9 @@ ${CVA6_REPO_DIR}/core/frontend/gbp.sv
 ${CVA6_REPO_DIR}/core/frontend/lbp.sv
 ${CVA6_REPO_DIR}/core/frontend/mbp.sv
 ${CVA6_REPO_DIR}/core/frontend/tournament.sv
+${CVA6_REPO_DIR}/core/frontend/tage_component.sv
+${CVA6_REPO_DIR}/core/frontend/tage_lfsr.sv
+${CVA6_REPO_DIR}/core/frontend/tage.sv
 ${CVA6_REPO_DIR}/core/frontend/btb.sv
 ${CVA6_REPO_DIR}/core/frontend/ras.sv
 ${CVA6_REPO_DIR}/core/frontend/instr_scan.sv

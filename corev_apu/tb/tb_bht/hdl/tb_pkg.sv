@@ -9,6 +9,7 @@ package tb_pkg;
     typedef enum bit {
         JUMP, CONDITIONAL
     } branch_type;
+    `include "bht_shadow.svh"
     `include "transaction.svh"
     `include "abstract_instruction.svh"
     `include "transaction_frontend.svh"
@@ -21,8 +22,9 @@ package tb_pkg;
     `include "instr_stream.svh"
     `include "generator_frontend.svh"
     `include "driver_frontend.svh"
+    `include "monitor_frontend.svh"
+    `include "scoreboard_frontend.svh"
     `include "agent_frontend.svh"
     `include "environment.svh"
     `include "test.svh"
-    `include "bht_shadow.svh"
 endpackage

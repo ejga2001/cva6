@@ -6,6 +6,8 @@
 class BHTShadow #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter type bht_update_t = logic,
+    parameter type bht_prediction_t = logic,
+    parameter type bp_metadata_t = logic,
     parameter int unsigned NR_ENTRIES = 1024
 );
     // the last bit is always zero, we don't need it for indexing
@@ -18,7 +20,16 @@ class BHTShadow #(
     // number of bits we should use for prediction
     localparam PREDICTION_BITS = $clog2(NR_ROWS) + OFFSET + ROW_ADDR_BITS;
 
-    local ariane_pkg::bht_t data [NR_ROWS][CVA6Cfg.INSTR_PER_FETCH-1:0];
+    localparam CTR_MAX_VAL = (1 << CVA6Cfg.BimodalCtrBits) - 1;
+
+    localparam INDEX_BITS = $clog2(NR_ROWS);
+
+    localparam type bht_t = struct packed {
+        logic                              valid;
+        logic [CVA6Cfg.BimodalCtrBits-1:0] saturation_counter;
+    };
+
+    local bht_t data [NR_ROWS][CVA6Cfg.INSTR_PER_FETCH-1:0];
 
     function automatic new;
         for (int i = 0; i < NR_ROWS; i++) begin
@@ -28,46 +39,55 @@ class BHTShadow #(
         end
     endfunction : new
 
-    function automatic ariane_pkg::bht_prediction_t output_bht (
-        input logic [CVA6Cfg.VLEN-1:0] vpc_i
+    function automatic void set_data(
+        int index,
+        int row_index,
+        int data
     );
-        logic [$clog2(NR_ROWS)-1:0] index;
-        logic [ROW_INDEX_BITS-1:0]  row_index;
+        this.data[index][row_index] = bht_t'(data);
+    endfunction : set_data
+
+    function automatic bht_prediction_t output_bht (
+        input logic [CVA6Cfg.VLEN-1:0] vpc_i,
+        input logic [CVA6Cfg.INSTR_PER_FETCH-1:0] row_index
+    );
+        logic [INDEX_BITS-1:0] index;
 
         index = vpc_i[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
-        row_index = vpc_i[ROW_ADDR_BITS+OFFSET-1:OFFSET];
 
-        return {data[index][row_index].valid, data[index][row_index].saturation_counter[1]};
+        return {data[index][row_index].valid, data[index][row_index].saturation_counter[CVA6Cfg.BimodalCtrBits-1], index};
     endfunction
 
-    function automatic ariane_pkg::bht_t update_bht (
+    function automatic void update_bht (
         input bht_update_t bht_update_i
     );
-        logic [$clog2(NR_ROWS)-1:0] index;
+        bp_metadata_t metadata;
+        logic [INDEX_BITS-1:0] index;
         logic [ROW_INDEX_BITS-1:0]  row_index;
 
-        index = bht_update_i.pc[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET];
+        metadata = bht_update_i.metadata;
+        index = metadata.index;
         row_index = bht_update_i.pc[ROW_ADDR_BITS+OFFSET-1:OFFSET];
 
-        data[index][row_index].valid = bht_update_i.valid;
-        if (data[index][row_index].saturation_counter == 2'b11) begin
-            // we can safely decrease it
-            if (bht_update_i.taken)
-                data[index][row_index].saturation_counter = data[index][row_index].saturation_counter - 1;
-            else data[index][row_index].saturation_counter = 2'b11;
-            // then check if it saturated in the negative regime e.g.: branch not taken
-        end else if (data[index][row_index].saturation_counter == 2'b00) begin
-            // we can safely increase it
-            if (bht_update_i.taken)
-                data[index][row_index].saturation_counter = data[index][row_index].saturation_counter + 1;
-            else data[index][row_index].saturation_counter = 2'b00;
-        end else begin  // otherwise we are not in any boundaries and can decrease or increase it
-            if (bht_update_i.taken)
-                data[index][row_index].saturation_counter = data[index][row_index].saturation_counter + 1;
-            else data[index][row_index].saturation_counter = data[index][row_index].saturation_counter - 1;
+        if (bht_update_i.valid) begin
+            data[index][row_index].valid = bht_update_i.valid;
+            if (data[index][row_index].saturation_counter == CTR_MAX_VAL) begin
+                // we can safely decrease it
+                if (~bht_update_i.taken)
+                    data[index][row_index].saturation_counter = data[index][row_index].saturation_counter - 1;
+                else data[index][row_index].saturation_counter = CTR_MAX_VAL;
+                // then check if it saturated in the negative regime e.g.: branch not taken
+            end else if (data[index][row_index].saturation_counter == 0) begin
+                // we can safely increase it
+                if (bht_update_i.taken)
+                    data[index][row_index].saturation_counter = data[index][row_index].saturation_counter + 1;
+                else data[index][row_index].saturation_counter = 0;
+            end else begin  // otherwise we are not in any boundaries and can decrease or increase it
+                if (bht_update_i.taken)
+                    data[index][row_index].saturation_counter = data[index][row_index].saturation_counter + 1;
+                else data[index][row_index].saturation_counter = data[index][row_index].saturation_counter - 1;
+            end
         end
-
-        return data[index][row_index];
     endfunction
     
 endclass

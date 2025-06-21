@@ -3,7 +3,7 @@
  * Created by enrique, 15/12/24
  */
 
-module lfsr#(
+module tage_lfsr #(
     parameter NBITS = 2,
     parameter int WIDTH = 4
 )(

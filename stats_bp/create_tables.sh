@@ -25,19 +25,19 @@ get_impl () {
     ;;
   esac
   case ${params} in
-  "bht=8192"|"gbp=8192"|"lbp=4096_lhr=2048_ctrbits=1"|"mbp=1024_gbp=2048_lbp=4096_lhr=1024"|"bimodal=8192_power=1_ubitperiod=2048")
+  "bht=8192_ctrbits=3"|"gbp=8192_ctrbits=3"|"lbp=2048_lhr=2048_ctrbits=3"|"mbp=1024_gbp=512_lbp=2048_lhr=2048"|"bimodal=4096_power=1_ubitperiod=2048")
     kbits="32"
     ;;
-  "bht=16384"|"gbp=16384"|"lbp=4096_lhr=4096_ctrbits=3"|"mbp=1024_gbp=4096_lbp=8192_lhr=2048"|"bimodal=16384_power=2_ubitperiod=2048")
+  "bht=16384_ctrbits=3"|"gbp=16384_ctrbits=3"|"lbp=4096_lhr=4096_ctrbits=3"|"mbp=1024_gbp=512_lbp=4096_lhr=4096"|"bimodal=8192_power=2_ubitperiod=2048")
     kbits="64"
     ;;
-  "bht=32768"|"gbp=32768"|"lbp=8192_lhr=8192_ctrbits=2"|"mbp=2048_gbp=16384_lbp=16384_lhr=2048"|"bimodal=32768_power=3_ubitperiod=2048")
+  "bht=32768_ctrbits=3"|"gbp=32768_ctrbits=3"|"lbp=8192_lhr=8192_ctrbits=3"|"mbp=2048_gbp=16384_lbp=4096_lhr=4096"|"bimodal=16384_power=3_ubitperiod=2048")
     kbits="128"
     ;;
-  "bht=65536"|"gbp=65536"|"lbp=16384_lhr=16384_ctrbits=1"|"mbp=8192_gbp=8192_lbp=32768_lhr=8192"|"bimodal=65536_power=4_ubitperiod=2048")
+  "bht=65536_ctrbits=3"|"gbp=65536_ctrbits=3"|"lbp=16384_lhr=16384_ctrbits=2"|"mbp=32768_gbp=16384_lbp=8192_lhr=8192"|"bimodal=32768_power=4_ubitperiod=2048")
     kbits="256"
     ;;
-  "bht=131072"|"gbp=131072"|"lbp=65536_lhr=16384_ctrbits=2"|"mbp=8192_gbp=16384_lbp=65536_lhr=16384"|"bimodal=131072_power=5_ubitperiod=2048")
+  "bht=131072_ctrbits=3"|"gbp=131072_ctrbits=3"|"lbp=65536_lhr=16384_ctrbits=3"|"mbp=65536_gbp=65536_lbp=8192_lhr=8192"|"bimodal=65536_power=5_ubitperiod=2048")
     kbits="512"
     ;;
   esac

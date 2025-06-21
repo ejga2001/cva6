@@ -7,6 +7,10 @@
 //
 // Original Author: Jean-Roch COULON - Thales
 
+`ifndef N_HISTORY_TABLES
+  `define N_HISTORY_TABLES 6
+`endif
+
 package config_pkg;
   // ---------------
   // Global Config
@@ -19,8 +23,13 @@ package config_pkg;
     GlobalBP,
     LocalBP,
     TournamentBP,
-    TAGE
+    TAGEBP
   } bp_t;
+
+  typedef enum logic {
+    TAGE_LONGEST_MATCH,
+    TAGE_ALT_MATCH
+  } tage_provider_t;
 
   /// The NoC type is a top-level parameter, hence we need a bit more
   /// information on what protocol those type parameters are supporting.
@@ -223,6 +232,20 @@ package config_pkg;
     int unsigned                 ChoiceCtrBits;
     int unsigned                 GlobalCtrBits;
     int unsigned                 LocalCtrBits;
+    // TAGE predictor
+    int unsigned                 power;
+    int unsigned                 nTagHistoryTables;
+    logic [`N_HISTORY_TABLES-1:0][31:0] histLengths;
+    logic [`N_HISTORY_TABLES-1:0][31:0] tagTableTagWidths;
+    logic [`N_HISTORY_TABLES-1:0][31:0] tagTableSizes;
+    int unsigned                 tagTableCounterBits;
+    int unsigned                 tagTableUBits;
+    int unsigned                 histBufferBits;
+    int unsigned                 pathHistBits;
+    int unsigned                 uResetPeriod;
+    int unsigned                 numUseAltOnNa;
+    int unsigned                 initialRstCtrValue;
+    int unsigned                 useAltOnNaBits;
   } cva6_user_cfg_t;
 
   typedef struct packed {
@@ -389,6 +412,20 @@ package config_pkg;
     int unsigned                 ChoiceCtrBits;
     int unsigned                 GlobalCtrBits;
     int unsigned                 LocalCtrBits;
+    // TAGE predictor
+    int unsigned                 power;
+    int unsigned                 nTagHistoryTables;
+    logic [`N_HISTORY_TABLES-1:0][31:0] histLengths;
+    logic [`N_HISTORY_TABLES-1:0][31:0] tagTableTagWidths;
+    logic [`N_HISTORY_TABLES-1:0][31:0] tagTableSizes;
+    int unsigned                 tagTableCounterBits;
+    int unsigned                 tagTableUBits;
+    int unsigned                 histBufferBits;
+    int unsigned                 pathHistBits;
+    int unsigned                 uResetPeriod;
+    int unsigned                 numUseAltOnNa;
+    int unsigned                 initialRstCtrValue;
+    int unsigned                 useAltOnNaBits;
   } cva6_cfg_t;
 
   /// Empty configuration to sanity check proper parameter passing. Whenever
