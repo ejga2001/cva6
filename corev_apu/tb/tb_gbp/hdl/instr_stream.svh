@@ -7,23 +7,12 @@ class InstructionStream #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter type bht_prediction_t = logic,
     parameter type bht_update_t = logic,
-    parameter NR_ENTRIES = 1024,
     parameter P_COMPRESSED_INSTR = 50,
     parameter P_NOT_A_BRANCH = 75,
     parameter P_CONDITIONAL = 50,
     parameter P_COND_TAKEN = 50,
     parameter P_LOOP_TAKEN = 90
 );
-    // the last bit is always zero, we don't need it for indexing
-    localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
-    // re-shape the branch history table
-    localparam NR_ROWS = NR_ENTRIES / CVA6Cfg.INSTR_PER_FETCH;
-    // number of bits needed to index the row
-    localparam ROW_ADDR_BITS = $clog2(CVA6Cfg.INSTR_PER_FETCH);
-    localparam ROW_INDEX_BITS = CVA6Cfg.RVC == 1'b1 ? $clog2(CVA6Cfg.INSTR_PER_FETCH) : 1;
-    // number of bits we should use for prediction
-    localparam PREDICTION_BITS = $clog2(NR_ROWS) + OFFSET + ROW_ADDR_BITS;
-
     local AbstractInstruction #(
         .CVA6Cfg(CVA6Cfg)
     ) stream;
@@ -32,18 +21,8 @@ class InstructionStream #(
         .CVA6Cfg(CVA6Cfg)
     ) q [$];
 
-    int start_blocks [$], block_lengths [$];
+    function automatic new();
 
-    int nblocks;
-
-    function automatic new(
-        ref int start_blocks [$],
-        ref int block_lengths [$],
-        int nblocks
-    );
-        this.start_blocks = start_blocks;
-        this.block_lengths = block_lengths;
-        this.nblocks = nblocks;
     endfunction : new
 
     function automatic AbstractInstruction #(
@@ -123,14 +102,9 @@ class InstructionStream #(
                     automatic AbstractInstruction #(
                         .CVA6Cfg(CVA6Cfg)
                     ) target_instr;
-                    int idx;
                     cond_branch_instr = new(vpc[$]);
-                    void'(std::randomize(idx) with {
-                        idx inside {[0:nblocks-1]};
-                    });
                     void'(std::randomize(target_address) with {
                         !(target_address inside {target_addresses[0:$]});
-                        target_address[PREDICTION_BITS-1:ROW_ADDR_BITS+OFFSET] inside {[start_blocks[idx]:start_blocks[idx]+block_lengths[idx]-1-(stream_length-i)]};
                         !(target_address % 4);
                     });
                     target_addresses[$+1] = target_address;
@@ -139,10 +113,10 @@ class InstructionStream #(
                     current_instr.setNextInstr(cond_branch_instr);
                     target_instr = create(target_instr, stream_length - i, target_address, 1);
                     assert(target_instr != null)
-                        else $fatal("Target instruction should NOT be null");
+                    else $fatal("Target instruction should NOT be null");
                     cond_branch_instr.set_target_instr(target_instr);
                     assert(cond_branch_instr.get_target_instr() != null)
-                        else $fatal("Target instruction should NOT be null");
+                    else $fatal("Target instruction should NOT be null");
                 end else begin
                     automatic LoopBranchInstruction #(
                         .CVA6Cfg(CVA6Cfg)
@@ -189,8 +163,6 @@ class InstructionStream #(
             q.push_back(stream);
 
         if (q.size() > 0) begin
-            foreach(q[i])
-                $display("INSTR_QUEUE[%0d] = %x", i, q[i].get_vpc());
             instr = q.pop_front();
             return instr;
         end
@@ -232,11 +204,9 @@ class InstructionStream #(
                 q.push_front(instr.get_target_instr()); // Target address
             end
         end else begin
-            $display("HEYY");
             flush_instr_queue();
             if (instr.get_target_instr() != null) begin
                 q.push_front(instr.get_target_instr()); // Target address
-                $display("TARGET_ADDRESS = %x", instr.get_target_instr().get_vpc());
             end
         end
         return 1;

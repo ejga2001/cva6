@@ -48,9 +48,9 @@ module tb;
         for (int i = 0; i < NR_ROWS; i++) begin
             int nrand0 = $random();
             int nrand1 = $random();
-            dut.gen_fpga_bht.gen_bht_ram[0].gen_async_ram.i_bht_ram.mem[i] = nrand0;
+            dut.gen_bht_ram[0].i_bht_ram.mem[i] = nrand0;
             gbp_shadow.set_data(i, 0, nrand0);
-            dut.gen_fpga_bht.gen_bht_ram[1].gen_async_ram.i_bht_ram.mem[i] = nrand1;
+            dut.gen_bht_ram[1].i_bht_ram.mem[i] = nrand1;
             gbp_shadow.set_data(i, 1, nrand1);
         end
     endfunction : preload_array

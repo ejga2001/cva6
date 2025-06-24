@@ -54,17 +54,17 @@ module tb;
         for (int i = 0; i < NR_ROWS_LBP; i++) begin
             int lbp_nrand0 = $random();
             int lbp_nrand1 = $random();
-            dut.gen_fpga_bht.gen_bht_ram[0].gen_async_ram.i_bht_ram.mem[i] = lbp_nrand0;
+            dut.gen_bht_ram[0].i_bht_ram.mem[i] = lbp_nrand0;
             lbp_shadow.set_lbp_data(i, 0, lbp_nrand0);
-            dut.gen_fpga_bht.gen_bht_ram[1].gen_async_ram.i_bht_ram.mem[i] = lbp_nrand1;
+            dut.gen_bht_ram[1].i_bht_ram.mem[i] = lbp_nrand1;
             lbp_shadow.set_lbp_data(i, 1, lbp_nrand1);
         end
         for (int i = 0; i < NR_ROWS_LHR; i++) begin
             int lhr_nrand0 = $random();
             int lhr_nrand1 = $random();
-            dut.gen_fpga_bht.gen_bht_ram[0].gen_async_ram.i_lhr_ram.mem[i] = lhr_nrand0;
+            dut.gen_bht_ram[0].i_lhr_ram.mem[i] = lhr_nrand0;
             lbp_shadow.set_lhr_data(i, 0, lhr_nrand0);
-            dut.gen_fpga_bht.gen_bht_ram[1].gen_async_ram.i_lhr_ram.mem[i] = lhr_nrand1;
+            dut.gen_bht_ram[1].i_lhr_ram.mem[i] = lhr_nrand1;
             lbp_shadow.set_lhr_data(i, 1, lhr_nrand1);
         end
     endfunction : preload_array
