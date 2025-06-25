@@ -68,33 +68,33 @@ module tb;
         for (int i = 0; i < NR_ROWS_MBP; i++) begin
             int nrand0 = $random();
             int nrand1 = $random();
-            dut.i_mbp.gen_fpga_bht.gen_bht_ram[0].gen_async_ram.i_bht_ram.mem[i] = nrand0;
+            dut.i_mbp.gen_bht_ram[0].i_bht_ram.mem[i] = nrand0;
             tournament_shadow.set_mbp_data(i, 0, nrand0);
-            dut.i_mbp.gen_fpga_bht.gen_bht_ram[1].gen_async_ram.i_bht_ram.mem[i] = nrand1;
+            dut.i_mbp.gen_bht_ram[1].i_bht_ram.mem[i] = nrand1;
             tournament_shadow.set_mbp_data(i, 1, nrand1);
         end
         for (int i = 0; i < NR_ROWS_GBP; i++) begin
             int nrand0 = $random();
             int nrand1 = $random();
-            dut.i_gbp.gen_fpga_bht.gen_bht_ram[0].gen_async_ram.i_bht_ram.mem[i] = nrand0;
+            dut.i_gbp.gen_bht_ram[0].i_bht_ram.mem[i] = nrand0;
             tournament_shadow.set_gbp_data(i, 0, nrand0);
-            dut.i_gbp.gen_fpga_bht.gen_bht_ram[1].gen_async_ram.i_bht_ram.mem[i] = nrand1;
+            dut.i_gbp.gen_bht_ram[1].i_bht_ram.mem[i] = nrand1;
             tournament_shadow.set_gbp_data(i, 1, nrand1);
         end
         for (int i = 0; i < NR_ROWS_LBP; i++) begin
             int nrand0 = $random();
             int nrand1 = $random();
-            dut.i_lbp.gen_fpga_bht.gen_bht_ram[0].gen_async_ram.i_bht_ram.mem[i] = nrand0;
+            dut.i_lbp.gen_bht_ram[0].i_bht_ram.mem[i] = nrand0;
             tournament_shadow.set_lbp_data(i, 0, nrand0);
-            dut.i_lbp.gen_fpga_bht.gen_bht_ram[1].gen_async_ram.i_bht_ram.mem[i] = nrand1;
+            dut.i_lbp.gen_bht_ram[1].i_bht_ram.mem[i] = nrand1;
             tournament_shadow.set_lbp_data(i, 1, nrand1);
         end
         for (int i = 0; i < NR_ROWS_LHR; i++) begin
             int nrand0 = $random();
             int nrand1 = $random();
-            dut.i_lbp.gen_fpga_bht.gen_bht_ram[0].gen_async_ram.i_lhr_ram.mem[i] = nrand0;
+            dut.i_lbp.gen_bht_ram[0].i_lhr_ram.mem[i] = nrand0;
             tournament_shadow.set_lhr_data(i, 0, nrand0);
-            dut.i_lbp.gen_fpga_bht.gen_bht_ram[1].gen_async_ram.i_lhr_ram.mem[i] = nrand1;
+            dut.i_lbp.gen_bht_ram[1].i_lhr_ram.mem[i] = nrand1;
             tournament_shadow.set_lhr_data(i, 1, nrand1);
         end
     endfunction : preload_array

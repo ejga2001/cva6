@@ -515,117 +515,99 @@ module frontend
         );
     end
 
-    if (CVA6Cfg.BHTEntries == 0) begin
-        assign bht_prediction = '0;
-    end else begin : bht_gen
-        case (CVA6Cfg.BranchPredictorImpl)
-            config_pkg::BimodalBP: begin
-                bht #(
-                    .CVA6Cfg   (CVA6Cfg),
-                    .bht_update_t(bht_update_t),
-                    .bht_prediction_t(bht_prediction_t),
-                    .bp_metadata_t(bp_metadata_t),
-                    .NR_ENTRIES(CVA6Cfg.BHTEntries)
-                ) i_bht (
-                    .clk_i,
-                    .rst_ni,
-                    .flush_bp_i      (flush_bp_i),
-                    .debug_mode_i,
-                    .vpc_i           (vpc_bht),
-                    .bht_update_i    (bht_update),
-                    .bht_prediction_o(bht_prediction)
-                );
-            end
-            config_pkg::GlobalBP: begin
-                gbp #(
-                    .CVA6Cfg   (CVA6Cfg),
-                    .bht_update_t(bht_update_t),
-                    .bht_prediction_t(bht_prediction_t),
-                    .bp_metadata_t(bp_metadata_t),
-                    .NR_ENTRIES(CVA6Cfg.GlobalPredictorSize)
-                ) i_gbp (
-                    .clk_i,
-                    .rst_ni,
-                    .flush_bp_i      (flush_bp_i),
-                    .debug_mode_i,
-                    .vpc_i           (vpc_bht),
-                    .bht_update_i    (bht_update),
-                    .bht_prediction_o(bht_prediction)
-                );
-            end
-            config_pkg::LocalBP: begin
-                lbp #(
-                    .CVA6Cfg   (CVA6Cfg),
-                    .bht_update_t(bht_update_t),
-                    .bht_prediction_t(bht_prediction_t),
-                    .bp_metadata_t(bp_metadata_t),
-                    .LBP_ENTRIES(CVA6Cfg.LocalPredictorSize),
-                    .LHR_ENTRIES(CVA6Cfg.LocalHistoryTableSize)
-                ) i_lbp (
-                    .clk_i,
-                    .rst_ni,
-                    .flush_bp_i      (flush_bp_i),
-                    .debug_mode_i,
-                    .vpc_i           (vpc_bht),
-                    .bht_update_i    (bht_update),
-                    .bht_prediction_o(bht_prediction)
-                );
-            end
-            config_pkg::TournamentBP: begin
-                tournament #(
-                    .CVA6Cfg   (CVA6Cfg),
-                    .bht_update_t(bht_update_t),
-                    .bht_prediction_t(bht_prediction_t),
-                    .bp_metadata_t(bp_metadata_t),
-                    .MBP_ENTRIES(CVA6Cfg.ChoicePredictorSize),
-                    .GBP_ENTRIES(CVA6Cfg.GlobalPredictorSize),
-                    .LBP_ENTRIES(CVA6Cfg.LocalPredictorSize),
-                    .LHR_ENTRIES(CVA6Cfg.LocalHistoryTableSize)
-                ) i_tournament (
-                    .clk_i,
-                    .rst_ni,
-                    .flush_bp_i      (flush_bp_i),
-                    .debug_mode_i,
-                    .vpc_i           (vpc_bht),
-                    .bht_update_i    (bht_update),
-                    .bht_prediction_o(bht_prediction)
-                );
-            end
-            config_pkg::TAGEBP: begin
-                tage #(
-                    .CVA6Cfg   (CVA6Cfg),
-                    .tage_metadata_t(bp_metadata_t),
-                    .tage_update_t(bht_update_t),
-                    .tage_prediction_t(bht_prediction_t)
-                ) i_tage (
-                    .clk_i,
-                    .rst_ni,
-                    .flush_bp_i      (flush_bp_i),
-                    .debug_mode_i,
-                    .vpc_i           (vpc_bht),
-                    .tage_update_i   (bht_update),
-                    .tage_prediction_o(bht_prediction)
-                );
-            end
-            default: begin
-                bht #(
-                    .CVA6Cfg   (CVA6Cfg),
-                    .bht_update_t(bht_update_t),
-                    .bht_prediction_t(bht_prediction_t),
-                    .bp_metadata_t(bp_metadata_t),
-                    .NR_ENTRIES(CVA6Cfg.BHTEntries)
-                ) i_bht (
-                    .clk_i,
-                    .rst_ni,
-                    .flush_bp_i      (flush_bp_i),
-                    .debug_mode_i,
-                    .vpc_i           (vpc_bht),
-                    .bht_update_i    (bht_update),
-                    .bht_prediction_o(bht_prediction)
-                );
-            end
-        endcase
-    end
+    case (CVA6Cfg.BranchPredictorImpl)
+        config_pkg::BimodalBP: begin
+            bht #(
+                .CVA6Cfg   (CVA6Cfg),
+                .bht_update_t(bht_update_t),
+                .bht_prediction_t(bht_prediction_t),
+                .bp_metadata_t(bp_metadata_t),
+                .NR_ENTRIES(CVA6Cfg.BHTEntries)
+            ) i_bht (
+                .clk_i,
+                .rst_ni,
+                .flush_bp_i      (flush_bp_i),
+                .debug_mode_i,
+                .vpc_i           (vpc_bht),
+                .bht_update_i    (bht_update),
+                .bht_prediction_o(bht_prediction)
+            );
+        end
+        config_pkg::GlobalBP: begin
+            gbp #(
+                .CVA6Cfg   (CVA6Cfg),
+                .bht_update_t(bht_update_t),
+                .bht_prediction_t(bht_prediction_t),
+                .bp_metadata_t(bp_metadata_t),
+                .NR_ENTRIES(CVA6Cfg.GlobalPredictorSize)
+            ) i_gbp (
+                .clk_i,
+                .rst_ni,
+                .flush_bp_i      (flush_bp_i),
+                .debug_mode_i,
+                .vpc_i           (vpc_bht),
+                .bht_update_i    (bht_update),
+                .bht_prediction_o(bht_prediction)
+            );
+        end
+        config_pkg::LocalBP: begin
+            lbp #(
+                .CVA6Cfg   (CVA6Cfg),
+                .bht_update_t(bht_update_t),
+                .bht_prediction_t(bht_prediction_t),
+                .bp_metadata_t(bp_metadata_t),
+                .LBP_ENTRIES(CVA6Cfg.LocalPredictorSize),
+                .LHR_ENTRIES(CVA6Cfg.LocalHistoryTableSize)
+            ) i_lbp (
+                .clk_i,
+                .rst_ni,
+                .flush_bp_i      (flush_bp_i),
+                .debug_mode_i,
+                .vpc_i           (vpc_bht),
+                .bht_update_i    (bht_update),
+                .bht_prediction_o(bht_prediction)
+            );
+        end
+        config_pkg::TournamentBP: begin
+            tournament #(
+                .CVA6Cfg   (CVA6Cfg),
+                .bht_update_t(bht_update_t),
+                .bht_prediction_t(bht_prediction_t),
+                .bp_metadata_t(bp_metadata_t),
+                .MBP_ENTRIES(CVA6Cfg.ChoicePredictorSize),
+                .GBP_ENTRIES(CVA6Cfg.GlobalPredictorSize),
+                .LBP_ENTRIES(CVA6Cfg.LocalPredictorSize),
+                .LHR_ENTRIES(CVA6Cfg.LocalHistoryTableSize)
+            ) i_tournament (
+                .clk_i,
+                .rst_ni,
+                .flush_bp_i      (flush_bp_i),
+                .debug_mode_i,
+                .vpc_i           (vpc_bht),
+                .bht_update_i    (bht_update),
+                .bht_prediction_o(bht_prediction)
+            );
+        end
+        config_pkg::TAGEBP: begin
+            tage #(
+                .CVA6Cfg   (CVA6Cfg),
+                .tage_metadata_t(bp_metadata_t),
+                .tage_update_t(bht_update_t),
+                .tage_prediction_t(bht_prediction_t)
+            ) i_tage (
+                .clk_i,
+                .rst_ni,
+                .flush_bp_i      (flush_bp_i),
+                .debug_mode_i,
+                .vpc_i           (vpc_bht),
+                .tage_update_i   (bht_update),
+                .tage_prediction_o(bht_prediction)
+            );
+        end
+        default: begin
+            assign bht_prediction = '0;
+        end
+    endcase
 
     // we need to inspect up to CVA6Cfg.INSTR_PER_FETCH instructions for branches
     // and jumps
