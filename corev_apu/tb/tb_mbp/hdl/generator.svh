@@ -12,11 +12,11 @@ class Generator #(
     parameter MAX_N_STREAMS = 12,
     parameter MIN_STREAM_LEN = 7,
     parameter MAX_STREAM_LEN = 12,
+    parameter P_COMPRESSED_INSTR = 50,
     parameter P_NOT_A_BRANCH = 75,
-    parameter P_CONDITIONAL = 50,
-    parameter P_COND_TAKEN = 50,
-    parameter P_LOOP_TAKEN = 90,
-    parameter P_COMPRESSED_INSTR = 50
+    parameter P_FORWARD_BRANCH = 50,
+    parameter P_FORWARD_TAKEN = 50,
+    parameter P_BACKWARD_TAKEN = 90
 );
     localparam ROW_INDEX_BITS = CVA6Cfg.RVC == 1'b1 ? $clog2(CVA6Cfg.INSTR_PER_FETCH) : 1;
 
@@ -60,9 +60,9 @@ class Generator #(
         .bht_update_t(bht_update_t),
         .P_COMPRESSED_INSTR(P_COMPRESSED_INSTR),
         .P_NOT_A_BRANCH(P_NOT_A_BRANCH),
-        .P_CONDITIONAL(P_CONDITIONAL),
-        .P_COND_TAKEN(P_COND_TAKEN),
-        .P_LOOP_TAKEN(P_LOOP_TAKEN)
+        .P_FORWARD_BRANCH(P_FORWARD_BRANCH),
+        .P_FORWARD_TAKEN(P_FORWARD_TAKEN),
+        .P_BACKWARD_TAKEN(P_BACKWARD_TAKEN)
     ) streams [];
 
     InstructionStream #(
@@ -71,9 +71,9 @@ class Generator #(
         .bht_update_t(bht_update_t),
         .P_COMPRESSED_INSTR(P_COMPRESSED_INSTR),
         .P_NOT_A_BRANCH(P_NOT_A_BRANCH),
-        .P_CONDITIONAL(P_CONDITIONAL),
-        .P_COND_TAKEN(P_COND_TAKEN),
-        .P_LOOP_TAKEN(P_LOOP_TAKEN)
+        .P_FORWARD_BRANCH(P_FORWARD_BRANCH),
+        .P_FORWARD_TAKEN(P_FORWARD_TAKEN),
+        .P_BACKWARD_TAKEN(P_BACKWARD_TAKEN)
     ) selected_stream;
 
     longint unsigned start_addresses [$];

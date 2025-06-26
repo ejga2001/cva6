@@ -21,9 +21,9 @@ class ExitInstruction #(
         return 0;
     endfunction : is_branch
 
-    function automatic bit is_conditional();
+    function automatic bit is_forward_branch();
         return 0;
-    endfunction : is_conditional
+    endfunction : is_forward_branch
 
     function automatic bit is_terminal();
         return 1;

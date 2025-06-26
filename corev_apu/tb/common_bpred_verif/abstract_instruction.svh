@@ -11,7 +11,7 @@ virtual class AbstractInstruction #(
 
     pure virtual function automatic bit is_branch();
 
-    pure virtual function automatic bit is_conditional();
+    pure virtual function automatic bit is_forward_branch();
 
     pure virtual function automatic bit is_terminal();
 

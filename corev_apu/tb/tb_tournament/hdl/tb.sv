@@ -33,6 +33,16 @@ module tb;
         bp_metadata_t            metadata;
     };
 
+    localparam int unsigned MIN_N_STREAMS = 6;
+    localparam int unsigned MAX_N_STREAMS = 12;
+    localparam int unsigned MIN_STREAM_LEN = 7;
+    localparam int unsigned MAX_STREAM_LEN = 12;
+    localparam int unsigned P_COMPRESSED_INSTR = 50;
+    localparam int unsigned P_NOT_A_BRANCH = 75;
+    localparam int unsigned P_FORWARD_BRANCH = 50;
+    localparam int unsigned P_FORWARD_TAKEN = 50;
+    localparam int unsigned P_BACKWARD_TAKEN = 90;
+
     localparam int unsigned MBP_ENTRIES = CVA6Cfg.ChoicePredictorSize;
 
     localparam int unsigned GBP_ENTRIES = CVA6Cfg.GlobalPredictorSize;
@@ -119,6 +129,15 @@ module tb;
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t),
         .bp_metadata_t(bp_metadata_t),
+        .MIN_N_STREAMS(MIN_N_STREAMS),
+        .MAX_N_STREAMS(MAX_N_STREAMS),
+        .MIN_STREAM_LEN(MIN_STREAM_LEN),
+        .MAX_STREAM_LEN(MAX_STREAM_LEN),
+        .P_COMPRESSED_INSTR(P_COMPRESSED_INSTR),
+        .P_NOT_A_BRANCH(P_NOT_A_BRANCH),
+        .P_FORWARD_BRANCH(P_FORWARD_BRANCH),
+        .P_FORWARD_TAKEN(P_FORWARD_TAKEN),
+        .P_BACKWARD_TAKEN(P_BACKWARD_TAKEN),
         .MBP_ENTRIES(MBP_ENTRIES),
         .GBP_ENTRIES(GBP_ENTRIES),
         .LBP_ENTRIES(LBP_ENTRIES),

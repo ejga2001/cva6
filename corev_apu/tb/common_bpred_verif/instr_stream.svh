@@ -9,9 +9,9 @@ class InstructionStream #(
     parameter type bht_update_t = logic,
     parameter P_COMPRESSED_INSTR = 50,
     parameter P_NOT_A_BRANCH = 75,
-    parameter P_CONDITIONAL = 50,
-    parameter P_COND_TAKEN = 50,
-    parameter P_LOOP_TAKEN = 90
+    parameter P_FORWARD_BRANCH = 50,
+    parameter P_FORWARD_TAKEN = 50,
+    parameter P_BACKWARD_TAKEN = 90
 );
     local AbstractInstruction #(
         .CVA6Cfg(CVA6Cfg)
@@ -72,7 +72,7 @@ class InstructionStream #(
         target_addresses[$+1] = -1; // Dummy
         for (int i = 1; i < stream_length - 1; i++) begin
             automatic int p_not_a_branch;
-            automatic int p_conditional;
+            automatic int p_forward;
             automatic int p_compressed_instr;
             automatic bit rvc;
             automatic logic [CVA6Cfg.VLEN-1:0] target_address;
@@ -80,8 +80,8 @@ class InstructionStream #(
             void'(std::randomize(p_not_a_branch) with {
                 p_not_a_branch inside {[0:100]};
             });
-            void'(std::randomize(p_conditional) with {
-                p_conditional inside {[0:100]};
+            void'(std::randomize(p_forward) with {
+                p_forward inside {[0:100]};
             });
             void'(std::randomize(p_compressed_instr) with {
                 p_compressed_instr inside {[0:100]};
@@ -95,40 +95,40 @@ class InstructionStream #(
                 current_instr.setNextInstr(norm_instr);
                 previous_instrs[g_vpc[$]] = norm_instr;
             end else begin
-                if (p_conditional < P_CONDITIONAL) begin
-                    automatic CondBranchInstruction #(
+                if (p_forward < P_FORWARD_BRANCH) begin
+                    automatic ForwardBranchInstruction #(
                         .CVA6Cfg(CVA6Cfg)
-                    ) cond_branch_instr;
+                    ) forward_branch_instr;
                     automatic AbstractInstruction #(
                         .CVA6Cfg(CVA6Cfg)
                     ) target_instr;
-                    cond_branch_instr = new(vpc[$]);
+                    forward_branch_instr = new(vpc[$]);
                     void'(std::randomize(target_address) with {
                         !(target_address inside {target_addresses[0:$]});
                         !(target_address % 4);
                     });
                     target_addresses[$+1] = target_address;
-                    previous_instrs[g_vpc[$]] = cond_branch_instr;
-                    cond_branch_instr.set_target_address(target_address);
-                    current_instr.setNextInstr(cond_branch_instr);
+                    previous_instrs[g_vpc[$]] = forward_branch_instr;
+                    forward_branch_instr.set_target_address(target_address);
+                    current_instr.setNextInstr(forward_branch_instr);
                     target_instr = create(target_instr, stream_length - i, target_address, 1);
                     assert(target_instr != null)
                     else $fatal("Target instruction should NOT be null");
-                    cond_branch_instr.set_target_instr(target_instr);
-                    assert(cond_branch_instr.get_target_instr() != null)
+                    forward_branch_instr.set_target_instr(target_instr);
+                    assert(forward_branch_instr.get_target_instr() != null)
                     else $fatal("Target instruction should NOT be null");
                 end else begin
-                    automatic LoopBranchInstruction #(
+                    automatic BackwardBranchInstruction #(
                         .CVA6Cfg(CVA6Cfg)
-                    ) loop_branch_instr;
-                    loop_branch_instr = new(vpc[$]);
+                    ) backward_branch_instr;
+                    backward_branch_instr = new(vpc[$]);
                     void'(std::randomize(target_address) with {
                         target_address inside {g_vpc[0:$]};
                     });
-                    previous_instrs[g_vpc[$]] = loop_branch_instr;
-                    loop_branch_instr.set_target_address(target_address);
-                    loop_branch_instr.set_target_instr(previous_instrs[target_address]);
-                    current_instr.setNextInstr(loop_branch_instr);
+                    previous_instrs[g_vpc[$]] = backward_branch_instr;
+                    backward_branch_instr.set_target_address(target_address);
+                    backward_branch_instr.set_target_instr(previous_instrs[target_address]);
+                    current_instr.setNextInstr(backward_branch_instr);
                 end
             end
             vpc[$+1] = vpc[$] + (rvc ? 2 : 4);
@@ -179,7 +179,7 @@ class InstructionStream #(
             void'(std::randomize(p_taken) with {
                 p_taken inside {[0:100]};
             });
-            return (instr.is_conditional() ? (p_taken < P_COND_TAKEN) : (p_taken < P_LOOP_TAKEN));
+            return (instr.is_forward_branch() ? (p_taken < P_FORWARD_TAKEN) : (p_taken < P_BACKWARD_TAKEN));
         end else
             return 0;
     endfunction : is_taken
@@ -196,7 +196,7 @@ class InstructionStream #(
                 q.push_front(instr.getNextInstr()); // PC + 4
             return 0;
         end
-        if (instr.is_conditional()) begin
+        if (instr.is_forward_branch()) begin
             if (instr.getNextInstr() != null) begin
                 q.push_back(instr.getNextInstr());  // PC + 4
             end
@@ -230,7 +230,7 @@ class InstructionStream #(
         end
         while (instr) begin
             instr.print(tab);
-            if (instr.is_branch() && instr.is_conditional())
+            if (instr.is_branch() && instr.is_forward_branch())
                 print(instr.get_target_instr(), {tab, "\t"}, 1);
             instr = instr.getNextInstr();
         end

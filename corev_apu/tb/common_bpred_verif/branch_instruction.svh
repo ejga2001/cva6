@@ -20,7 +20,7 @@ virtual class BranchInstruction #(
         return 1;
     endfunction : is_branch
 
-    pure virtual function automatic bit is_conditional();
+    pure virtual function automatic bit is_forward_branch();
 
     pure virtual function automatic AbstractInstruction #(
         .CVA6Cfg(CVA6Cfg)
@@ -35,6 +35,6 @@ virtual class BranchInstruction #(
     function automatic void print(string tab = "");
         super.print(tab);
         $display({tab, "target_address = %x"}, this.target_address);
-        $display(tab, "is_conditional = %x", is_conditional());
+        $display(tab, "is_forward_branch = %x", is_forward_branch());
     endfunction : print
 endclass : BranchInstruction
