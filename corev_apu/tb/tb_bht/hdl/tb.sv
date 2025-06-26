@@ -3,10 +3,6 @@
  * Created by enrique, 19/03/25
  */
 
-`ifndef DUT_PATH
-    `define DUT_PATH dut.gen_bht_ram
-`endif
-
 `timescale 1ns/1ns
 module tb;
     import tb_pkg::*;
@@ -52,9 +48,9 @@ module tb;
         for (int i = 0; i < NR_ROWS; i++) begin
             int nrand0 = $random();
             int nrand1 = $random();
-            `DUT_PATH[0].i_bht_ram.mem[i] = nrand0;
+            dut.gen_bht_ram[0].i_bht_ram.mem[i] = nrand0;
             bht_shadow.set_data(i, 0, nrand0);
-            `DUT_PATH[1].i_bht_ram.mem[i] = nrand1;
+            dut.gen_bht_ram[1].i_bht_ram.mem[i] = nrand1;
             bht_shadow.set_data(i, 1, nrand1);
         end
     endfunction : preload_array
@@ -109,7 +105,7 @@ module tb;
         clk_i = 1'b0;
         rst_ni = 1'b0;
 
-        preload_array(t.env.agent.scoreboard.bht_shadow);
+        preload_array(t.env.scoreboard.bht_shadow);
 
         #(CLOCK_PERIOD) rst_ni = 1'b1;
 

@@ -105,7 +105,7 @@ module tb;
         clk_i = 1'b0;
         rst_ni = 1'b0;
 
-        preload_array(t.env.agent.scoreboard.gbp_shadow);
+        preload_array(t.env.scoreboard.gbp_shadow);
 
         #(CLOCK_PERIOD) rst_ni = 1'b1;
 

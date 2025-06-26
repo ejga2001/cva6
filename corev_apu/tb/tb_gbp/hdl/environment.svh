@@ -14,9 +14,16 @@ class Environment #(
         .CVA6Cfg(CVA6Cfg),
         .bht_update_t(bht_update_t),
         .bht_prediction_t(bht_prediction_t),
+        .bp_metadata_t(bp_metadata_t)
+    ) agent;
+
+    Scoreboard #(
+        .CVA6Cfg(CVA6Cfg),
+        .bht_update_t(bht_update_t),
+        .bht_prediction_t(bht_prediction_t),
         .bp_metadata_t(bp_metadata_t),
         .NR_ENTRIES(NR_ENTRIES)
-    ) agent;
+    ) scoreboard;
 
     virtual bht_if #(
         .CVA6Cfg(CVA6Cfg),
@@ -32,13 +39,16 @@ class Environment #(
             .bht_prediction_t(bht_prediction_t)
         ) vif
     );
+        mailbox scb_mbx = new;
         this.vif = vif;
-        agent = new(ncycles, vif);
+        agent = new(ncycles, vif, scb_mbx);
+        scoreboard = new(scb_mbx);
     endfunction : new
 
     task run;
         fork
             agent.run();
+            scoreboard.run();
         join_any
     endtask : run
 endclass : Environment

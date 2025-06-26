@@ -7,11 +7,7 @@ class Agent #(
     parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter type bht_update_t = logic,
     parameter type bht_prediction_t = logic,
-    parameter type bp_metadata_t = logic,
-    parameter int unsigned MBP_ENTRIES = 256,
-    parameter int unsigned GBP_ENTRIES = 256,
-    parameter int unsigned LBP_ENTRIES = 256,
-    parameter int unsigned LHR_ENTRIES = 256
+    parameter type bp_metadata_t = logic
 );
     Generator #(
         .CVA6Cfg(CVA6Cfg),
@@ -31,18 +27,7 @@ class Agent #(
         .bht_prediction_t(bht_prediction_t),
         .bp_metadata_t(bp_metadata_t)
     ) monitor;
-    Scoreboard #(
-        .CVA6Cfg(CVA6Cfg),
-        .bht_update_t(bht_update_t),
-        .bht_prediction_t(bht_prediction_t),
-        .bp_metadata_t(bp_metadata_t),
-        .MBP_ENTRIES(MBP_ENTRIES),
-        .GBP_ENTRIES(GBP_ENTRIES),
-        .LBP_ENTRIES(LBP_ENTRIES),
-        .LHR_ENTRIES(LHR_ENTRIES)
-    ) scoreboard;
 
-    mailbox drv_mbx, scb_mbx;
     event drv_done;
 
     virtual bht_if #(
@@ -57,15 +42,14 @@ class Agent #(
             .CVA6Cfg(CVA6Cfg),
             .bht_update_t(bht_update_t),
             .bht_prediction_t(bht_prediction_t)
-        ) vif
+        ) vif,
+        mailbox scb_mbx
     );
+        mailbox drv_mbx = new;
         this.vif = vif;
-        drv_mbx = new;
-        scb_mbx = new;
         generator = new(ncycles, drv_mbx, drv_done);
         driver = new(vif, drv_mbx, drv_done);
         monitor = new(vif, scb_mbx);
-        scoreboard = new(scb_mbx);
     endfunction : new
 
     task run;
@@ -73,7 +57,6 @@ class Agent #(
             generator.run();
             driver.run();
             monitor.run();
-            scoreboard.run();
         join_any
     endtask : run
 endclass : Agent
